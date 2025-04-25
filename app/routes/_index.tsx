@@ -18,7 +18,6 @@ export default function Index() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Si hay un usuario, asegurarse de que la página esté completamente cargada
     if (currentUser) {
       document.documentElement.classList.add('loaded');
     }
@@ -27,19 +26,35 @@ export default function Index() {
   if (!currentUser) {
     return (
       <div className="flex h-screen items-center justify-center bg-gradient-to-b from-zinc-900 to-zinc-800">
-        <div className="text-center px-4 py-8 rounded-lg bg-zinc-800/50 backdrop-blur-sm">
+        <div className="text-center px-8 py-12 rounded-lg bg-zinc-800/50 backdrop-blur-sm max-w-md w-full mx-4">
           <h1 className="text-3xl font-bold text-white mb-4">
-            Bienvenido a Gym Progress
+            Gym Progress
           </h1>
-          <p className="text-gray-300 mb-8 max-w-md">
-            Por favor, crea un perfil para comenzar a registrar tu progreso
+          <p className="text-gray-300 mb-8">
+            Registra y monitorea tu progreso en el gimnasio de manera fácil y efectiva
           </p>
-          <Link
-            to="/profile/new"
-            className="inline-flex items-center justify-center bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-all duration-200 transform hover:scale-105"
-          >
-            Crear Perfil
-          </Link>
+          <div className="space-y-4">
+            <Link
+              to="/profile/new"
+              className="block w-full bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-all duration-200 transform hover:scale-105"
+            >
+              Crear Nuevo Perfil
+            </Link>
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-600"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 text-gray-400 bg-zinc-800/50">o</span>
+              </div>
+            </div>
+            <Link
+              to="/profile/select"
+              className="block w-full bg-zinc-700 text-white px-6 py-3 rounded-lg hover:bg-zinc-600 transition-all duration-200 transform hover:scale-105"
+            >
+              Usar Perfil Existente
+            </Link>
+          </div>
         </div>
       </div>
     );

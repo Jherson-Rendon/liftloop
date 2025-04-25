@@ -187,6 +187,13 @@ export async function setCurrentUser(userId: string): Promise<void> {
   await storage.set(CURRENT_USER_KEY, userId);
 }
 
+export async function clearCurrentUser(): Promise<void> {
+  if (!isBrowser) {
+    currentUserPromise = null;
+  }
+  await storage.del(CURRENT_USER_KEY);
+}
+
 // Machine functions with initialization check
 export async function getMachines(): Promise<Machine[]> {
   try {

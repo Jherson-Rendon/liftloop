@@ -1,5 +1,5 @@
 import { User } from "~/lib/storage";
-import { Link } from "@remix-run/react";
+import { Link, Form } from "@remix-run/react";
 
 interface UserProfileProps {
   user: User;
@@ -39,18 +39,18 @@ export function UserProfile({ user }: UserProfileProps) {
       <div className="flex justify-between items-center">
         <Link
           to="/profile/edit"
-          className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+          className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
         >
           Editar Perfil
         </Link>
-        <button
-          onClick={() => {
-            // Implementar función de logout
-          }}
-          className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-        >
-          Cerrar Sesión
-        </button>
+        <Form action="/logout" method="post">
+          <button
+            type="submit"
+            className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors"
+          >
+            Cerrar Sesión
+          </button>
+        </Form>
       </div>
     </div>
   );
