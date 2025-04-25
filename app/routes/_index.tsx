@@ -1,5 +1,5 @@
-import React from 'react';
-import { useOutletContext, Link } from "@remix-run/react";
+import React, { useEffect } from 'react';
+import { useOutletContext, Link, useNavigate } from "@remix-run/react";
 import type { Machine, User } from "~/lib/storage";
 import { MachineCard } from "~/components/cards/MachineCard";
 import { ProgressChart } from "~/components/charts/ProgressChart";
@@ -15,20 +15,28 @@ export default function Index() {
   const context = useOutletContext<OutletContext>();
   const currentUser = context?.currentUser;
   const machines = context?.machines || [];
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Si hay un usuario, asegurarse de que la página esté completamente cargada
+    if (currentUser) {
+      document.documentElement.classList.add('loaded');
+    }
+  }, [currentUser]);
 
   if (!currentUser) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-4">
+      <div className="flex h-screen items-center justify-center bg-gradient-to-b from-zinc-900 to-zinc-800">
+        <div className="text-center px-4 py-8 rounded-lg bg-zinc-800/50 backdrop-blur-sm">
+          <h1 className="text-3xl font-bold text-white mb-4">
             Bienvenido a Gym Progress
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mb-8">
+          <p className="text-gray-300 mb-8 max-w-md">
             Por favor, crea un perfil para comenzar a registrar tu progreso
           </p>
           <Link
             to="/profile/new"
-            className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
+            className="inline-flex items-center justify-center bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-all duration-200 transform hover:scale-105"
           >
             Crear Perfil
           </Link>
