@@ -9,7 +9,7 @@ import {
 } from "@remix-run/react";
 import type { LinksFunction, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import "./tailwind.css";
 import { getCurrentUser, getMachines } from "~/lib/storage";
@@ -45,22 +45,25 @@ export default function App() {
   const { currentUser, machines } = useLoaderData<typeof loader>();
   const { isOnline } = useNetworkStatus();
   const location = useLocation();
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    // Register service worker
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/service-worker.js').catch(error => {
-          console.error('Service Worker registration failed:', error);
-        });
-      });
-    }
+    setIsMounted(true);
   }, []);
 
-  // Update title on navigation
   useEffect(() => {
-    document.title = `Gym Progress - ${location.pathname.slice(1) || 'Home'}`;
-  }, [location]);
+    if (isMounted && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/service-worker.js').catch(error => {
+        console.error('Service Worker registration failed:', error);
+      });
+    }
+  }, [isMounted]);
+
+  useEffect(() => {
+    if (isMounted) {
+      document.title = `Gym Progress - ${location.pathname.slice(1) || 'Home'}`;
+    }
+  }, [location, isMounted]);
 
   return (
     <html lang="en" className="h-full">
@@ -73,7 +76,7 @@ export default function App() {
       </head>
       <body className="h-full bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100">
         <Outlet context={{ currentUser, machines }} />
-        {!isOnline && <Toast message="Modo sin conexión" type="warning" />}
+        {isMounted && !isOnline && <Toast message="Modo sin conexión" type="warning" />}
         <ScrollRestoration />
         <Scripts />
       </body>

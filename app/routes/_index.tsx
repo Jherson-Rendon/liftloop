@@ -1,5 +1,5 @@
 import React from 'react';
-import { useOutletContext } from "@remix-run/react";
+import { useOutletContext, Link } from "@remix-run/react";
 import type { Machine, User } from "~/lib/storage";
 import { MachineCard } from "~/components/cards/MachineCard";
 import { ProgressChart } from "~/components/charts/ProgressChart";
@@ -12,7 +12,9 @@ interface OutletContext {
 }
 
 export default function Index() {
-  const { currentUser, machines } = useOutletContext<OutletContext>();
+  const context = useOutletContext<OutletContext>();
+  const currentUser = context?.currentUser;
+  const machines = context?.machines || [];
 
   if (!currentUser) {
     return (
@@ -24,12 +26,12 @@ export default function Index() {
           <p className="text-gray-600 dark:text-gray-400 mb-8">
             Por favor, crea un perfil para comenzar a registrar tu progreso
           </p>
-          <a
-            href="/profile/new"
+          <Link
+            to="/profile/new"
             className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
           >
             Crear Perfil
-          </a>
+          </Link>
         </div>
       </div>
     );
