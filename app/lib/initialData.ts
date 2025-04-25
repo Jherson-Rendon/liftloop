@@ -4,7 +4,7 @@ export const initialMachines: Machine[] = [
   {
     id: 1,
     name: "Press de Banca",
-    image: "bench-press.png",
+    image: "Bench_press.png",
     category: "Pecho"
   },
   {
