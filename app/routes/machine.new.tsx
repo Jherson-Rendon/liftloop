@@ -6,6 +6,7 @@ import type { Machine } from '~/lib/storage';
 
 export default function NewMachine() {
   const { currentUser } = useUserStore();
+  console.log('[NewMachine] currentUser:', currentUser);
   const navigate = useNavigate();
 
   if (!currentUser) {

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { User, getUser, saveUser, setCurrentUser, getCurrentUser } from '~/lib/storage';
+import { User, getUser, saveUser } from '~/lib/storage';
 
 interface UserState {
   currentUser: User | null;
@@ -7,7 +7,6 @@ interface UserState {
   error: string | null;
   setCurrentUser: (userId: string) => Promise<void>;
   updateUserWeight: (weight: number) => Promise<void>;
-  loadCurrentUser: () => Promise<void>;
   setCurrentUserDirect: (user: User | null) => void;
 }
 
@@ -19,7 +18,6 @@ export const useUserStore = create<UserState>((set, get) => ({
   setCurrentUser: async (userId: string) => {
     try {
       set({ isLoading: true, error: null });
-      await setCurrentUser(userId);
       const user = await getUser(userId);
       set({ currentUser: user, isLoading: false });
     } catch (error) {
@@ -63,19 +61,6 @@ export const useUserStore = create<UserState>((set, get) => ({
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'Error updating weight', 
-        isLoading: false 
-      });
-    }
-  },
-
-  loadCurrentUser: async () => {
-    try {
-      set({ isLoading: true, error: null });
-      const user = await getCurrentUser();
-      set({ currentUser: user, isLoading: false });
-    } catch (error) {
-      set({ 
-        error: error instanceof Error ? error.message : 'Error loading current user', 
         isLoading: false 
       });
     }

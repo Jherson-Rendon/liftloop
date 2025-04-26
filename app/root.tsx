@@ -10,9 +10,10 @@ import {
 import type { LinksFunction, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useEffect, useState } from "react";
+import { getCurrentUserFromCookie, getMachines, getUsersFromFirestore } from "~/lib/storage";
+import { parse } from "cookie";
 
 import "./tailwind.css";
-import { getCurrentUser, getMachines } from "~/lib/storage";
 import { Toast } from "~/components/ui/Toast";
 import { useNetworkStatus } from "~/hooks/useNetworkStatus";
 import { useUserStore } from "~/hooks/useUserStore";
@@ -35,11 +36,11 @@ export const links: LinksFunction = () => [
 ];
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const [currentUser, machines] = await Promise.all([
-    getCurrentUser(),
-    getMachines()
-  ]);
-
+  const cookieHeader = request.headers.get('Cookie');
+  console.log('[root loader] Cookie header:', cookieHeader);
+  let currentUser = await getCurrentUserFromCookie(request);
+  console.log('[root loader] currentUser:', currentUser);
+  let machines = [];
   return json({ currentUser, machines });
 }
 

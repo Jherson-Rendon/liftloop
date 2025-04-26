@@ -1,7 +1,8 @@
 import { get, set, del, keys, entries } from 'idb-keyval';
 import { initialMachines } from './initialData';
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "./firebaseConfig";
+import { parse } from "cookie";
 
 // Types
 export interface User {
@@ -164,39 +165,6 @@ export async function deleteUser(userId: string): Promise<void> {
   }
 }
 
-export async function getCurrentUser(): Promise<User | null> {
-  if (!isBrowser) {
-    // On server, cache the promise to prevent multiple calls
-    if (!currentUserPromise) {
-      currentUserPromise = (async () => {
-        const currentUserId = await storage.get(CURRENT_USER_KEY);
-        if (!currentUserId) return null;
-        return await getUser(currentUserId);
-      })();
-    }
-    return currentUserPromise;
-  }
-
-  // On client, proceed normally
-  const currentUserId = await storage.get(CURRENT_USER_KEY);
-  if (!currentUserId) return null;
-  return await getUser(currentUserId);
-}
-
-export async function setCurrentUser(userId: string): Promise<void> {
-  if (!isBrowser) {
-    currentUserPromise = null;
-  }
-  await storage.set(CURRENT_USER_KEY, userId);
-}
-
-export async function clearCurrentUser(): Promise<void> {
-  if (!isBrowser) {
-    currentUserPromise = null;
-  }
-  await storage.del(CURRENT_USER_KEY);
-}
-
 // Machine functions with initialization check
 export async function getMachines(userId: string): Promise<Machine[]> {
   try {
@@ -333,7 +301,6 @@ export async function createUser(data: { name: string; age: number; weight: numb
   };
 
   await saveUser(user);
-  await setCurrentUser(id);
   return user;
 }
 
@@ -342,4 +309,48 @@ export async function getUsersFromFirestore() {
   const usersCol = collection(db, "users");
   const userSnapshot = await getDocs(usersCol);
   return userSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+}
+
+// Nueva función para obtener máquinas desde Firestore por userId
+export async function getMachinesFromFirestore(userId: string) {
+  const machinesCol = collection(db, "machines");
+  const q = query(machinesCol, where("userId", "==", userId));
+  const machinesSnapshot = await getDocs(q);
+  return machinesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+}
+
+// Nueva función para obtener sesiones desde Firestore por userId
+export async function getSessionsFromFirestore(userId: string) {
+  const sessionsCol = collection(db, "session");
+  const q = query(sessionsCol, where("userId", "==", userId));
+  const sessionsSnapshot = await getDocs(q);
+  return sessionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+}
+
+// Nueva función para obtener usuario actual desde cookie y Firestore
+export async function getCurrentUserFromCookie(request: Request) {
+  const cookieHeader = request.headers.get("Cookie");
+  let currentUserId = null;
+  if (cookieHeader) {
+    const cookies = parse(cookieHeader);
+    currentUserId = cookies.currentUserId;
+  }
+  if (currentUserId) {
+    const users = await getUsersFromFirestore();
+    return users.find((u: any) => u.id === currentUserId) || null;
+  }
+  return null;
+}
+
+// Helpers para cookies (SSR)
+export function setCurrentUserCookie(userId: string) {
+  if (typeof document !== 'undefined') {
+    document.cookie = `currentUserId=${userId}; path=/;`;
+  }
+}
+
+export function getCurrentUserIdFromCookie(): string | null {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie.match(/(?:^|; )currentUserId=([^;]*)/);
+  return match ? decodeURIComponent(match[1]) : null;
 }

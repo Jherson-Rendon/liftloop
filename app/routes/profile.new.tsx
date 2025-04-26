@@ -2,11 +2,13 @@ import { redirect } from "@remix-run/node";
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { Form } from "@remix-run/react";
 import { saveUser, setCurrentUser } from "~/lib/storage";
+import { collection, setDoc, doc } from "firebase/firestore";
+import { db } from "~/lib/firebaseConfig";
 
 console.log('[Profile New] Module loaded');
 
 export async function action({ request }: ActionFunctionArgs) {
-  console.log('[Profile Action] Starting');
+  console.log('[Profile New Action] Iniciando action');
   const formData = await request.formData();
   
   const name = formData.get("name") as string;
@@ -15,10 +17,10 @@ export async function action({ request }: ActionFunctionArgs) {
   const age = formData.get("age") as string;
   const height = formData.get("height") as string;
 
-  console.log('[Profile Action] Form data:', { name, weight, color, age, height });
+  console.log('[Profile New Action] Form data:', { name, weight, color, age, height });
 
   if (!name || !weight || !color || !age || !height) {
-    console.log('[Profile Action] Missing required fields:', { name, weight, color, age, height });
+    console.log('[Profile New Action] Faltan campos:', { name, weight, color, age, height });
     return { error: "Todos los campos son requeridos" };
   }
 
@@ -34,24 +36,16 @@ export async function action({ request }: ActionFunctionArgs) {
     height: parseFloat(height)
   };
 
-  console.log('[Profile Action] Created user object:', user);
+  console.log('[Profile New Action] Created user object:', user);
 
   try {
-    console.log('[Profile Action] Attempting to save user');
-    await saveUser(user);
-    console.log('[Profile Action] User saved successfully');
+    console.log('[Profile New Action] Attempting to save user');
+    await setDoc(doc(collection(db, "users"), user.id), user);
+    console.log('[Profile New Action] Usuario guardado en Firestore:', user);
     
-    console.log('[Profile Action] Setting as current user');
-    await setCurrentUser(user.id);
-    console.log('[Profile Action] Current user set successfully');
-    
-    return redirect("/", {
-      headers: {
-        "Set-Cookie": "reload=true",
-      },
-    });
+    return redirect("/profile/select");
   } catch (error) {
-    console.error("[Profile Action] Error in profile creation:", error);
+    console.error("[Profile New Action] Error al guardar usuario:", error);
     return { error: "Error al guardar el usuario. Por favor, intenta de nuevo." };
   }
 }

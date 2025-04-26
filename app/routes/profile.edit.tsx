@@ -1,10 +1,15 @@
 import { redirect } from "@remix-run/node";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { Form, useLoaderData } from "@remix-run/react";
-import { getCurrentUser, saveUser } from "~/lib/storage";
+import { getCurrentUserFromCookie } from "~/lib/storage";
+import { setDoc, doc, collection } from "firebase/firestore";
+import { db } from "~/lib/firebaseConfig";
+import type { User } from "~/lib/storage";
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const currentUser = await getCurrentUser();
+  console.log('[Profile Edit Loader] Iniciando loader');
+  const currentUser = await getCurrentUserFromCookie(request) as User | null;
+  console.log('[Profile Edit Loader] currentUser:', currentUser);
   if (!currentUser) {
     return redirect("/");
   }
@@ -12,7 +17,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 export async function action({ request }: ActionFunctionArgs) {
-  const currentUser = await getCurrentUser();
+  console.log('[Profile Edit Action] Iniciando action');
+  const currentUser = await getCurrentUserFromCookie(request) as User | null;
+  console.log('[Profile Edit Action] currentUser:', currentUser);
   if (!currentUser) {
     return redirect("/");
   }
@@ -23,6 +30,7 @@ export async function action({ request }: ActionFunctionArgs) {
   const color = formData.get("color") as string;
 
   if (!name || !weight || !color) {
+    console.log('[Profile Edit Action] Faltan campos:', { name, weight, color });
     return { error: "Todos los campos son requeridos" };
   }
 
@@ -34,12 +42,18 @@ export async function action({ request }: ActionFunctionArgs) {
     weightDates: [...(currentUser.weightDates || []), new Date().toISOString()],
   };
 
-  await saveUser(updatedUser);
-  return redirect("/");
+  try {
+    await setDoc(doc(collection(db, "users"), updatedUser.id), updatedUser);
+    console.log('[Profile Edit Action] Usuario actualizado en Firestore:', updatedUser);
+    return redirect("/");
+  } catch (error) {
+    console.error("[Profile Edit Action] Error al guardar usuario:", error);
+    return { error: "Error al guardar el usuario. Por favor, intenta de nuevo." };
+  }
 }
 
 export default function EditProfile() {
-  const { currentUser } = useLoaderData<typeof loader>();
+  const { currentUser } = useLoaderData<{ currentUser: User }>();
   const colors = [
     "#2563eb", // blue-600
     "#dc2626", // red-600

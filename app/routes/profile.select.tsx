@@ -1,29 +1,34 @@
 import { json, redirect } from "@remix-run/node";
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { useLoaderData, Link } from "@remix-run/react";
-import { getUsers, setCurrentUser } from "~/lib/storage";
+import { getUsersFromFirestore } from "~/lib/storage";
 import type { User } from "~/lib/storage";
+import React from "react";
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const users = await getUsers();
-  
+  console.log('[Profile Select Loader] Iniciando loader');
+  const users = await getUsersFromFirestore();
+  console.log('[Profile Select Loader] users:', users);
   if (!users || users.length === 0) {
     return redirect("/profile/new");
   }
-
   return json({ users });
 }
 
 export async function action({ request }: LoaderFunctionArgs) {
+  console.log('[Profile Select Action] Iniciando action');
   const formData = await request.formData();
   const userId = formData.get("userId") as string;
-
+  console.log('[Profile Select Action] userId:', userId);
   if (!userId) {
     return json({ error: "Se requiere seleccionar un usuario" });
   }
-
-  await setCurrentUser(userId);
-  return redirect("/");
+  // Setear cookie como string plano (sin codificación ni serialización)
+  return redirect("/", {
+    headers: {
+      "Set-Cookie": `currentUserId=${userId}; Path=/; SameSite=Lax`
+    }
+  });
 }
 
 export default function SelectProfile() {
@@ -41,7 +46,7 @@ export default function SelectProfile() {
         
         <div className="space-y-4">
           {users.map((user: User) => (
-            <form method="post" key={user.id}>
+            <form method="post" key={user.id} onSubmit={() => setTimeout(() => window.location.href = '/', 100)}>
               <input type="hidden" name="userId" value={user.id} />
               <button
                 type="submit"

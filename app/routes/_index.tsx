@@ -6,7 +6,7 @@ import { ProgressChart } from "~/components/charts/ProgressChart";
 import { UserProfile } from "~/components/cards/UserProfile";
 import { AddSessionForm } from "~/components/forms/AddSessionForm";
 import { AddMachineForm } from "~/components/forms/AddMachineForm";
-import { getMachines, saveMachines } from "~/lib/storage";
+import { getMachines, saveMachines, getMachinesFromFirestore } from "~/lib/storage";
 import TestFirestore from "~/components/TestFirestore";
 
 interface OutletContext {
@@ -15,8 +15,10 @@ interface OutletContext {
 }
 
 export default function Index() {
+  console.log('[Index] Renderizando componente principal', new Date().toISOString());
   const context = useOutletContext<OutletContext>();
   const currentUser = context?.currentUser;
+  console.log('[Index] currentUser en render:', currentUser);
   const navigate = useNavigate();
   const [machines, setMachines] = useState<Machine[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,11 +26,22 @@ export default function Index() {
   const categories = Array.from(new Set(machines.map(m => m.category)));
 
   useEffect(() => {
+    console.log('[Index] useEffect ejecutado. currentUser:', currentUser, new Date().toISOString());
     if (currentUser) {
       document.documentElement.classList.add('loaded');
       setLoading(true);
-      getMachines(currentUser.id).then(m => {
-        setMachines(m);
+      getMachinesFromFirestore(currentUser.id).then(m => {
+        console.log('[Firestore] Máquinas obtenidas:', m);
+        const machines: Machine[] = m.map((item: any) => ({
+          id: item.id,
+          name: item.name || '',
+          image: item.image || '',
+          category: item.category || '',
+        }));
+        setMachines(machines);
+        setLoading(false);
+      }).catch(e => {
+        console.error('[Firestore] Error obteniendo máquinas:', e);
         setLoading(false);
       });
     }

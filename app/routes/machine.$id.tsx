@@ -26,17 +26,20 @@ export default function MachineDetail() {
 
   useEffect(() => {
     const fetchData = async () => {
+      console.log('[MachineDetail] useEffect ejecutado. currentUser:', currentUser, 'id:', id);
       if (!currentUser) return;
       if (!id) return;
       try {
         const machineId = parseInt(id);
         const machineData = await getMachine(currentUser.id, machineId);
+        console.log('[MachineDetail] machineData:', machineData);
         if (!machineData) {
           navigate('/');
           return;
         }
         setMachine(machineData);
         const sessionsData = await getSessionsByMachine(currentUser.id, machineId);
+        console.log('[MachineDetail] sessionsData:', sessionsData);
         setSessions(sessionsData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
       } catch (error) {
         console.error('Error fetching machine data:', error);
