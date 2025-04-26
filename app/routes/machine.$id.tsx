@@ -28,23 +28,38 @@ export default function MachineDetail() {
 
   useEffect(() => {
     const fetchData = async () => {
-      console.log('[MachineDetail] useEffect ejecutado. currentUser:', currentUser, 'id:', id);
       if (!currentUser) return;
       if (!id) return;
+      setIsLoading(true);
       try {
-        // Buscar la máquina en Firestore por id string
-        const machines = await getMachinesFromFirestore(currentUser.id);
-        const machineData = machines.find(m => m.id === id);
-        console.log('[MachineDetail] machineData:', machineData);
+        // Obtener máquinas y asegurar tipado
+        const machines = (await getMachinesFromFirestore(currentUser.id)).map((m: any) => ({
+          ...m,
+          id: Number(m.id),
+          name: m.name ?? "",
+          image: m.image ?? "",
+          category: m.category ?? "",
+          userId: m.userId ?? "",
+        }));
+        const machineData = machines.find(m => m.id === Number(id));
         if (!machineData) {
           navigate('/');
           return;
         }
         setMachine(machineData);
-        // Migrar sesiones a Firestore
-        const allSessions = await getSessionsFromFirestore(currentUser.id);
-        const sessionsData = allSessions.filter(s => s.machineId == id || s.machineId == Number(id));
-        console.log('[MachineDetail] sessionsData:', sessionsData);
+
+        // Obtener sesiones y asegurar tipado
+        const allSessions = (await getSessionsFromFirestore(currentUser.id)).map((s: any) => ({
+          ...s,
+          id: String(s.id),
+          userId: s.userId ?? "",
+          machineId: Number(s.machineId),
+          weight: Number(s.weight),
+          reps: Number(s.reps),
+          date: s.date ?? "",
+          difficulty: s.difficulty ?? "easy",
+        }));
+        const sessionsData = allSessions.filter(s => s.machineId === Number(id));
         setSessions(sessionsData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
       } catch (error) {
         console.error('Error fetching machine data:', error);
@@ -66,7 +81,7 @@ export default function MachineDetail() {
     const newSession: Session = {
       id: Date.now().toString(),
       userId: currentUser.id,
-      machineId: machine.id,
+      machineId: Number(machine.id),
       weight: parseFloat(formData.weight),
       reps: parseInt(formData.reps),
       date: dateToUse,
