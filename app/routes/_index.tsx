@@ -1,10 +1,12 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useOutletContext, Link, useNavigate } from "@remix-run/react";
 import type { Machine, User } from "~/lib/storage";
 import { MachineCard } from "~/components/cards/MachineCard";
 import { ProgressChart } from "~/components/charts/ProgressChart";
 import { UserProfile } from "~/components/cards/UserProfile";
 import { AddSessionForm } from "~/components/forms/AddSessionForm";
+import { AddMachineForm } from "~/components/forms/AddMachineForm";
+import { getMachines, saveMachines } from "~/lib/storage";
 
 interface OutletContext {
   currentUser: User | null;
@@ -14,14 +16,38 @@ interface OutletContext {
 export default function Index() {
   const context = useOutletContext<OutletContext>();
   const currentUser = context?.currentUser;
-  const machines = context?.machines || [];
   const navigate = useNavigate();
+  const [machines, setMachines] = useState<Machine[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (currentUser) {
       document.documentElement.classList.add('loaded');
+      setLoading(true);
+      getMachines(currentUser.id).then(m => {
+        setMachines(m);
+        setLoading(false);
+      });
     }
   }, [currentUser]);
+
+  const handleMachineAdded = (machine: Machine) => {
+    setMachines(prev => [...prev, machine]);
+  };
+
+  const handleEditMachine = (machine: Machine) => {
+    alert(`Editar máquina: ${machine.name}`);
+    // Aquí puedes abrir un modal o formulario de edición en el futuro
+  };
+
+  const handleDeleteMachine = async (machine: Machine) => {
+    if (!currentUser) return;
+    if (window.confirm(`¿Seguro que deseas eliminar la máquina "${machine.name}"?`)) {
+      const newMachines = machines.filter(m => m.id !== machine.id);
+      await saveMachines(currentUser.id, newMachines);
+      setMachines(newMachines);
+    }
+  };
 
   if (!currentUser) {
     return (
@@ -79,16 +105,29 @@ export default function Index() {
           </div>
 
           {/* Máquinas */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {machines.map((machine) => (
-              <MachineCard key={machine.id} machine={machine} userId={currentUser.id} />
-            ))}
-          </div>
-
-          {/* Formulario para agregar sesión */}
-          <div className="mt-8">
-            <AddSessionForm userId={currentUser.id} machines={machines} />
-          </div>
+          {loading ? (
+            <div className="text-center py-8">Cargando máquinas...</div>
+          ) : machines.length === 0 ? (
+            <AddMachineForm userId={currentUser.id} onMachineAdded={handleMachineAdded} />
+          ) : (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {machines.map((machine) => (
+                  <MachineCard
+                    key={machine.id}
+                    machine={machine}
+                    userId={currentUser.id}
+                    onEdit={handleEditMachine}
+                    onDelete={handleDeleteMachine}
+                  />
+                ))}
+              </div>
+              {/* Formulario para agregar más máquinas */}
+              <div className="mt-8">
+                <AddMachineForm userId={currentUser.id} onMachineAdded={handleMachineAdded} />
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

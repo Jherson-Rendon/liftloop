@@ -28,13 +28,14 @@ export interface Session {
   weight: number;
   reps: number;
   date: string;
+  difficulty: 'easy' | 'medium' | 'hard';
 }
 
 // Storage keys
 const CURRENT_USER_KEY = 'currentUserId';
 const USER_PREFIX = 'user_';
 const SESSION_PREFIX = 'session_';
-const MACHINES_KEY = 'machines';
+const MACHINES_PREFIX = 'machines_';
 
 // Helper function to check if we're in the browser and IndexedDB is available
 const isBrowser = typeof window !== 'undefined';
@@ -195,18 +196,9 @@ export async function clearCurrentUser(): Promise<void> {
 }
 
 // Machine functions with initialization check
-export async function getMachines(): Promise<Machine[]> {
+export async function getMachines(userId: string): Promise<Machine[]> {
   try {
-    let machines = await storage.get(MACHINES_KEY);
-    
-    // Only initialize once on the server
-    if (!isBrowser && !isInitialized && (!machines || machines.length === 0)) {
-      console.log('[Storage] First-time initialization of machines');
-      await storage.set(MACHINES_KEY, initialMachines);
-      machines = initialMachines;
-      isInitialized = true;
-    }
-    
+    const machines = await storage.get(`${MACHINES_PREFIX}${userId}`);
     return machines || [];
   } catch (error) {
     console.error('Error getting machines:', error);
@@ -214,21 +206,18 @@ export async function getMachines(): Promise<Machine[]> {
   }
 }
 
-export async function saveMachines(machines: Machine[]): Promise<void> {
+export async function saveMachines(userId: string, machines: Machine[]): Promise<void> {
   try {
-    await storage.set(MACHINES_KEY, machines);
-    if (!isBrowser) {
-      isInitialized = true;
-    }
+    await storage.set(`${MACHINES_PREFIX}${userId}`, machines);
   } catch (error) {
     console.error('Error saving machines:', error);
     throw error;
   }
 }
 
-export async function getMachine(id: number): Promise<Machine | null> {
+export async function getMachine(userId: string, id: number): Promise<Machine | null> {
   try {
-    const machines = await getMachines();
+    const machines = await getMachines(userId);
     return machines.find(machine => machine.id === id) || null;
   } catch (error) {
     console.error('Error getting machine:', error);
@@ -274,8 +263,7 @@ export async function getSessionsByMachine(userId: string, machineId: number): P
 
 // Helper function to calculate total weight lifted by week
 export async function getWeightLiftedByWeek(userId: string): Promise<{ week: string, total: number }[]> {
-  if (!isIndexedDBAvailable()) return [];
-  
+  if (!userId) return [];
   try {
     const sessions = await getSessionsByUser(userId);
     
@@ -308,16 +296,16 @@ export async function migrateToBackend() {
   try {
     const users = await getUsers();
     const allSessions: Session[] = [];
+    const allMachines: Record<string, Machine[]> = {};
     
     for (const user of users) {
       const userSessions = await getSessionsByUser(user.id);
       allSessions.push(...userSessions);
+      allMachines[user.id] = await getMachines(user.id);
     }
     
-    const machines = await getMachines();
-    
-    // Here you would implement the API calls to send this data to your backend
-    console.log('Ready to migrate:', { users, sessions: allSessions, machines });
+    // Aquí implementarías las llamadas a la API para enviar estos datos a tu backend
+    console.log('Ready to migrate:', { users, sessions: allSessions, machines: allMachines });
     
     return { success: true, message: 'Data prepared for migration' };
   } catch (error) {

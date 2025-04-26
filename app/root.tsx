@@ -15,6 +15,7 @@ import "./tailwind.css";
 import { getCurrentUser, getMachines } from "~/lib/storage";
 import { Toast } from "~/components/ui/Toast";
 import { useNetworkStatus } from "~/hooks/useNetworkStatus";
+import { useUserStore } from "~/hooks/useUserStore";
 
 export const links: LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -46,6 +47,7 @@ export default function App() {
   const { isOnline } = useNetworkStatus();
   const location = useLocation();
   const [isMounted, setIsMounted] = useState(false);
+  const setCurrentUserDirect = useUserStore((state) => state.setCurrentUserDirect);
 
   useEffect(() => {
     setIsMounted(true);
@@ -64,6 +66,10 @@ export default function App() {
       document.title = `Gym Progress - ${location.pathname.slice(1) || 'Home'}`;
     }
   }, [location, isMounted]);
+
+  useEffect(() => {
+    setCurrentUserDirect(currentUser);
+  }, [currentUser, setCurrentUserDirect]);
 
   return (
     <html lang="en" className="h-full">

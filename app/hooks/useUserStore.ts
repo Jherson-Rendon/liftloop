@@ -8,6 +8,7 @@ interface UserState {
   setCurrentUser: (userId: string) => Promise<void>;
   updateUserWeight: (weight: number) => Promise<void>;
   loadCurrentUser: () => Promise<void>;
+  setCurrentUserDirect: (user: User | null) => void;
 }
 
 export const useUserStore = create<UserState>((set, get) => ({
@@ -78,5 +79,9 @@ export const useUserStore = create<UserState>((set, get) => ({
         isLoading: false 
       });
     }
+  },
+
+  setCurrentUserDirect: (user: User | null) => {
+    set({ currentUser: user });
   },
 }));
