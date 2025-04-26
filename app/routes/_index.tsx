@@ -108,9 +108,24 @@ export default function Index() {
           {loading ? (
             <div className="text-center py-8">Cargando máquinas...</div>
           ) : machines.length === 0 ? (
-            <AddMachineForm userId={currentUser.id} onMachineAdded={handleMachineAdded} />
+            <div className="text-center py-8">
+              <Link
+                to="/machine/new"
+                className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-all duration-200 transform hover:scale-105"
+              >
+                Agregar primera máquina
+              </Link>
+            </div>
           ) : (
             <>
+              <div className="flex justify-end mb-4">
+                <Link
+                  to="/machine/new"
+                  className="inline-block bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-all duration-200"
+                >
+                  + Agregar máquina
+                </Link>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {machines.map((machine) => (
                   <MachineCard
@@ -121,10 +136,6 @@ export default function Index() {
                     onDelete={handleDeleteMachine}
                   />
                 ))}
-              </div>
-              {/* Formulario para agregar más máquinas */}
-              <div className="mt-8">
-                <AddMachineForm userId={currentUser.id} onMachineAdded={handleMachineAdded} />
               </div>
             </>
           )}
