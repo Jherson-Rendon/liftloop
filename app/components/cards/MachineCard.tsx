@@ -20,7 +20,9 @@ export function MachineCard({ machine, userId, onEdit, onDelete }: MachineCardPr
   React.useEffect(() => {
     const fetchLastSession = async () => {
       try {
-        const sessions = await getSessionsByMachine(userId, machine.id);
+        // Convertir id a number si es string
+        const machineIdNum = typeof machine.id === 'string' ? parseInt(machine.id, 10) : machine.id;
+        const sessions = await getSessionsByMachine(userId, machineIdNum);
         if (sessions.length > 0) {
           // Ordenar por fecha descendente y tomar el más reciente
           const lastSession = sessions.sort((a, b) => 

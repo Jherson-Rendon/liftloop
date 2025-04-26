@@ -18,10 +18,11 @@ export interface User {
 }
 
 export interface Machine {
-  id: number;
+  id: string | number;
   name: string;
   image: string;
   category: string;
+  userId?: string;
 }
 
 export interface Session {

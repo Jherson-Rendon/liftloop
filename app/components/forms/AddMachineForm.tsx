@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { Machine } from '~/lib/storage';
-import { saveMachines, getMachines } from '~/lib/storage';
+import { collection, setDoc, doc } from 'firebase/firestore';
+import { db } from '~/lib/firebaseConfig';
 
 interface AddMachineFormProps {
   userId: string;
@@ -44,16 +45,16 @@ export function AddMachineForm({ userId, onMachineAdded }: AddMachineFormProps) 
         setLoading(false);
         return;
       }
-      const machines = await getMachines(userId);
-      const newId = machines.length > 0 ? Math.max(...machines.map(m => m.id)) + 1 : 1;
+      const newId = Date.now().toString();
       const imageToUse = image.trim() || selectedImage || 'default-machine.png';
-      const newMachine: Machine = {
+      const newMachine: Machine & { userId: string } = {
         id: newId,
         name: name.trim(),
         category,
         image: imageToUse,
+        userId,
       };
-      await saveMachines(userId, [...machines, newMachine]);
+      await setDoc(doc(collection(db, 'machines'), newId), newMachine);
       onMachineAdded(newMachine);
       setName('');
       setCategory(categories[0]);

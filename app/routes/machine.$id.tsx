@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from '@remix-run/react';
 import type { Machine, Session } from '~/lib/storage';
-import { getMachine, getMachines, getSessionsByMachine, saveSession } from '~/lib/storage';
+import { getMachine, getMachines, getSessionsByMachine, saveSession, getSessionsFromFirestore, getMachinesFromFirestore } from '~/lib/storage';
 import { useUserStore } from '~/hooks/useUserStore';
 import { useTestDateStore } from '~/hooks/useTestDateStore';
 import Modal from 'react-modal';
+import { collection, setDoc, doc, deleteDoc } from 'firebase/firestore';
+import { db } from '~/lib/firebaseConfig';
 
 export default function MachineDetail() {
   const { id } = useParams();
@@ -30,15 +32,18 @@ export default function MachineDetail() {
       if (!currentUser) return;
       if (!id) return;
       try {
-        const machineId = parseInt(id);
-        const machineData = await getMachine(currentUser.id, machineId);
+        // Buscar la máquina en Firestore por id string
+        const machines = await getMachinesFromFirestore(currentUser.id);
+        const machineData = machines.find(m => m.id === id);
         console.log('[MachineDetail] machineData:', machineData);
         if (!machineData) {
           navigate('/');
           return;
         }
         setMachine(machineData);
-        const sessionsData = await getSessionsByMachine(currentUser.id, machineId);
+        // Migrar sesiones a Firestore
+        const allSessions = await getSessionsFromFirestore(currentUser.id);
+        const sessionsData = allSessions.filter(s => s.machineId == id || s.machineId == Number(id));
         console.log('[MachineDetail] sessionsData:', sessionsData);
         setSessions(sessionsData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
       } catch (error) {
@@ -53,9 +58,11 @@ export default function MachineDetail() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser || !machine) return;
-
-    const dateToUse = testDateStore.enabled && testDateStore.testDate ? testDateStore.testDate : new Date().toISOString();
-
+    let dateToUse = testDateStore.enabled && testDateStore.testDate ? testDateStore.testDate : new Date().toISOString();
+    // Si la fecha es YYYY-MM-DD, ajusta a mediodía para evitar desfase
+    if (testDateStore.enabled && testDateStore.testDate && /^\d{4}-\d{2}-\d{2}$/.test(testDateStore.testDate)) {
+      dateToUse = `${testDateStore.testDate}T12:00:00`;
+    }
     const newSession: Session = {
       id: Date.now().toString(),
       userId: currentUser.id,
@@ -65,11 +72,11 @@ export default function MachineDetail() {
       date: dateToUse,
       difficulty: formData.difficulty
     };
-
     try {
-      await saveSession(newSession);
+      await setDoc(doc(collection(db, 'session'), newSession.id), newSession);
       setSessions([newSession, ...sessions]);
       setFormData({ weight: '', reps: '', difficulty: 'easy' });
+      setShowRegisterModal(false);
     } catch (error) {
       console.error('Error saving session:', error);
     }
@@ -78,15 +85,12 @@ export default function MachineDetail() {
   const handleDeleteSession = async (sessionId: string) => {
     if (!currentUser) return;
     if (window.confirm('¿Seguro que deseas eliminar este registro?')) {
-      const updatedSessions = sessions.filter(s => s.id !== sessionId);
-      // Eliminar de storage
-      const { entries, del } = await import('idb-keyval');
-      const allEntries: [string, any][] = await entries();
-      const sessionKey = `session_${currentUser.id}_${sessionId}`;
-      if (allEntries.some(([key]) => key === sessionKey)) {
-        await del(sessionKey);
+      try {
+        await deleteDoc(doc(collection(db, 'session'), sessionId));
+        setSessions(sessions.filter(s => s.id !== sessionId));
+      } catch (error) {
+        console.error('Error deleting session:', error);
       }
-      setSessions(updatedSessions);
     }
   };
 
@@ -97,11 +101,14 @@ export default function MachineDetail() {
 
   const handleModalSave = async (updated: Session) => {
     if (!currentUser) return;
-    // Actualizar en storage
-    await (await import('idb-keyval')).set(`session_${currentUser.id}_${updated.id}`, updated);
-    setSessions(sessions.map(s => s.id === updated.id ? updated : s));
-    setShowModal(false);
-    setEditSession(null);
+    try {
+      await setDoc(doc(collection(db, 'session'), updated.id), updated);
+      setSessions(sessions.map(s => s.id === updated.id ? updated : s));
+      setShowModal(false);
+      setEditSession(null);
+    } catch (error) {
+      console.error('Error updating session:', error);
+    }
   };
 
   const handleModalClose = () => {

@@ -6,8 +6,10 @@ import { ProgressChart } from "~/components/charts/ProgressChart";
 import { UserProfile } from "~/components/cards/UserProfile";
 import { AddSessionForm } from "~/components/forms/AddSessionForm";
 import { AddMachineForm } from "~/components/forms/AddMachineForm";
-import { getMachines, saveMachines, getMachinesFromFirestore } from "~/lib/storage";
+import { getMachines, getMachinesFromFirestore } from "~/lib/storage";
 import TestFirestore from "~/components/TestFirestore";
+import { collection, setDoc, doc, deleteDoc } from 'firebase/firestore';
+import { db } from '~/lib/firebaseConfig';
 
 interface OutletContext {
   currentUser: User | null;
@@ -47,8 +49,10 @@ export default function Index() {
     }
   }, [currentUser]);
 
-  const handleMachineAdded = (machine: Machine) => {
+  const handleMachineAdded = async (machine: Machine) => {
     setMachines(prev => [...prev, machine]);
+    // Guardar en Firestore
+    await setDoc(doc(collection(db, 'machines'), machine.id.toString()), { ...machine, userId: currentUser?.id });
   };
 
   const handleEditMachine = (machine: Machine) => {
@@ -59,9 +63,12 @@ export default function Index() {
   const handleDeleteMachine = async (machine: Machine) => {
     if (!currentUser) return;
     if (window.confirm(`¿Seguro que deseas eliminar la máquina "${machine.name}"?`)) {
-      const newMachines = machines.filter(m => m.id !== machine.id);
-      await saveMachines(currentUser.id, newMachines);
-      setMachines(newMachines);
+      try {
+        await deleteDoc(doc(collection(db, 'machines'), machine.id.toString()));
+        setMachines(machines.filter(m => m.id !== machine.id));
+      } catch (error) {
+        console.error('Error deleting machine:', error);
+      }
     }
   };
 

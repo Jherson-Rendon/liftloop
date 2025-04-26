@@ -39,7 +39,7 @@ export function TestDatePanel() {
             <input
               type="date"
               value={testDate ? testDate.slice(0, 10) : ''}
-              onChange={e => setTestDate(e.target.value ? new Date(e.target.value).toISOString() : null)}
+              onChange={e => setTestDate(e.target.value ? e.target.value : null)}
               className="w-full px-3 py-2 border border-gray-300 dark:border-zinc-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-zinc-700 dark:text-white"
               disabled={!enabled}
             />
