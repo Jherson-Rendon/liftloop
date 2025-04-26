@@ -16,6 +16,7 @@ import { getCurrentUser, getMachines } from "~/lib/storage";
 import { Toast } from "~/components/ui/Toast";
 import { useNetworkStatus } from "~/hooks/useNetworkStatus";
 import { useUserStore } from "~/hooks/useUserStore";
+import { TestDatePanel } from "~/components/ui/TestDatePanel";
 
 export const links: LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -82,6 +83,7 @@ export default function App() {
       </head>
       <body className="h-full bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100">
         <Outlet context={{ currentUser, machines }} />
+        <TestDatePanel />
         {isMounted && !isOnline && <Toast message="Modo sin conexión" type="warning" />}
         <ScrollRestoration />
         <Scripts />
