@@ -5,6 +5,7 @@ import { getCurrentUserFromCookie } from "~/lib/storage";
 import { setDoc, doc, collection } from "firebase/firestore";
 import { db } from "~/lib/firebaseConfig";
 import type { User } from "~/lib/storage";
+import { useState } from "react";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   console.log('[Profile Edit Loader] Iniciando loader');
@@ -53,7 +54,8 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function EditProfile() {
-  const { currentUser } = useLoaderData<{ currentUser: User }>();
+  const { currentUser } = useLoaderData<typeof loader>();
+  const [showCode, setShowCode] = useState(false);
   const colors = [
     "#2563eb", // blue-600
     "#dc2626", // red-600
@@ -135,6 +137,35 @@ export default function EditProfile() {
                     />
                   </div>
                 ))}
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Código de acceso</label>
+              <div className="relative">
+                <input
+                  type={showCode ? "text" : "password"}
+                  value={currentUser.code}
+                  readOnly
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-zinc-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-zinc-700 dark:text-white pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCode((v) => !v)}
+                  className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-500 dark:text-gray-300 focus:outline-none"
+                  tabIndex={-1}
+                  aria-label={showCode ? "Ocultar código" : "Mostrar código"}
+                >
+                  {showCode ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12c1.676 4.019 5.822 7 10.066 7 2.042 0 3.97-.613 5.566-1.66M21.066 12c-.394-.947-.958-1.818-1.66-2.577M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0zm2.25 2.25l3.5 3.5m-3.5-3.5A9.003 9.003 0 013 12c1.676-4.019 5.822-7 10.066-7 2.042 0 3.97.613 5.566 1.66" />
+                    </svg>
+                  )}
+                </button>
               </div>
             </div>
 

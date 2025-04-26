@@ -16,11 +16,12 @@ export async function action({ request }: ActionFunctionArgs) {
   const color = formData.get("color") as string;
   const age = formData.get("age") as string;
   const height = formData.get("height") as string;
+  const code = formData.get("code") as string;
 
-  console.log('[Profile New Action] Form data:', { name, weight, color, age, height });
+  console.log('[Profile New Action] Form data:', { name, weight, color, age, height, code });
 
-  if (!name || !weight || !color || !age || !height) {
-    console.log('[Profile New Action] Faltan campos:', { name, weight, color, age, height });
+  if (!name || !weight || !color || !age || !height || !code) {
+    console.log('[Profile New Action] Faltan campos:', { name, weight, color, age, height, code });
     return { error: "Todos los campos son requeridos" };
   }
 
@@ -33,12 +34,18 @@ export async function action({ request }: ActionFunctionArgs) {
     weightDates: [new Date().toISOString()],
     createdAt: new Date().toISOString(),
     age: parseInt(age),
-    height: parseFloat(height)
+    height: parseFloat(height),
+    code,
   };
 
   console.log('[Profile New Action] Created user object:', user);
 
   try {
+    // Verificar unicidad del código
+    const usersSnap = await import("~/lib/storage").then(m => m.getUsersFromFirestore());
+    if (usersSnap.some((u: any) => u.code === code)) {
+      return { error: "El código ya está en uso. Elige otro." };
+    }
     console.log('[Profile New Action] Attempting to save user');
     await setDoc(doc(collection(db, "users"), user.id), user);
     console.log('[Profile New Action] Usuario guardado en Firestore:', user);
@@ -146,6 +153,25 @@ export default function NewProfile() {
                 min="20"
                 step="0.1"
                 className="mt-1 block w-full rounded-md border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-gray-900 dark:text-gray-100 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="code"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+              >
+                Código de acceso (elige uno único)
+              </label>
+              <input
+                type="text"
+                name="code"
+                id="code"
+                required
+                minLength={4}
+                maxLength={20}
+                className="mt-1 block w-full rounded-md border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-gray-900 dark:text-gray-100 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                placeholder="Ej: mi-codigo-secreto"
               />
             </div>
 

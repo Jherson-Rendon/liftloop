@@ -15,6 +15,7 @@ export interface User {
   createdAt: string;
   age: number;
   height: number;
+  code: string;
 }
 
 export interface Machine {
@@ -285,22 +286,25 @@ export async function migrateToBackend() {
   }
 }
 
-export async function createUser(data: { name: string; age: number; weight: number; height: number }): Promise<User> {
+export async function createUser(data: { name: string; age: number; weight: number; height: number; code: string }): Promise<User> {
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
-  
+  const users = await getUsersFromFirestore();
+  if (users.some((u: any) => u.code === data.code)) {
+    throw new Error('El código ya está en uso.');
+  }
   const user: User = {
     id,
     name: data.name,
-    avatar: '', // Default avatar can be added later
-    color: '#' + Math.floor(Math.random()*16777215).toString(16), // Random color
+    avatar: '',
+    color: '#' + Math.floor(Math.random()*16777215).toString(16),
     weight: [data.weight],
     weightDates: [now],
     createdAt: now,
     age: data.age,
-    height: data.height
+    height: data.height,
+    code: data.code,
   };
-
   await saveUser(user);
   return user;
 }
