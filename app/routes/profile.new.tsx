@@ -25,6 +25,10 @@ export async function action({ request }: ActionFunctionArgs) {
     return { error: "Todos los campos son requeridos" };
   }
 
+  if (!/^\d{4}$/.test(code)) {
+    return { error: "El código debe ser exactamente 4 dígitos numéricos." };
+  }
+
   const user = {
     id: crypto.randomUUID(),
     name,
@@ -161,17 +165,20 @@ export default function NewProfile() {
                 htmlFor="code"
                 className="block text-sm font-medium text-gray-700 dark:text-gray-300"
               >
-                Código de acceso (elige uno único)
+                Código de acceso (4 dígitos)
               </label>
               <input
                 type="text"
                 name="code"
                 id="code"
                 required
+                pattern="[0-9]{4}"
                 minLength={4}
-                maxLength={20}
+                maxLength={4}
+                inputMode="numeric"
+                autoComplete="one-time-code"
                 className="mt-1 block w-full rounded-md border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-gray-900 dark:text-gray-100 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                placeholder="Ej: mi-codigo-secreto"
+                placeholder="Ej: 1234"
               />
             </div>
 
