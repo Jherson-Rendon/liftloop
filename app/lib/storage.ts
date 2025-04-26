@@ -1,5 +1,7 @@
 import { get, set, del, keys, entries } from 'idb-keyval';
 import { initialMachines } from './initialData';
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "./firebaseConfig";
 
 // Types
 export interface User {
@@ -333,4 +335,11 @@ export async function createUser(data: { name: string; age: number; weight: numb
   await saveUser(user);
   await setCurrentUser(id);
   return user;
+}
+
+// Nueva función para obtener usuarios desde Firestore
+export async function getUsersFromFirestore() {
+  const usersCol = collection(db, "users");
+  const userSnapshot = await getDocs(usersCol);
+  return userSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 }
