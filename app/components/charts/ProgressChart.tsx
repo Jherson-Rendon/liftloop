@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { getWeightLiftedByWeek, getMachines, getSessionsByMachine } from "~/lib/storage";
+import { getWeightLiftedByWeek, getMachines, getSessionsByMachine, Machine } from "~/lib/storage";
 import { WeightLine } from "~/components/charts/WeightLine";
 
 interface ProgressChartProps {
@@ -12,12 +12,17 @@ interface MachineProgress {
   lastWeight: number | null;
   prevWeight: number | null;
   change: 'up' | 'down' | 'same' | 'new';
+  category: string;
 }
 
 export function ProgressChart({ userId }: ProgressChartProps) {
   const [activeTab, setActiveTab] = useState<"weight" | "machines">("weight");
   const [machineProgress, setMachineProgress] = useState<MachineProgress[]>([]);
   const [loading, setLoading] = useState(true);
+  const [machineList, setMachineList] = useState<Machine[]>([]);
+  const [showAll, setShowAll] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>("todas");
+  const [categories, setCategories] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchMachineProgress = async () => {
@@ -25,6 +30,12 @@ export function ProgressChart({ userId }: ProgressChartProps) {
       try {
         if (activeTab === "machines") {
           const machines = await getMachines(userId);
+          setMachineList(machines);
+          // Obtener categorías únicas
+          const uniqueCategories = [
+            ...new Set(machines.map((m) => m.category)),
+          ];
+          setCategories(uniqueCategories);
           const progress: MachineProgress[] = await Promise.all(
             machines.map(async (machine) => {
               const sessions = await getSessionsByMachine(userId, machine.id);
@@ -35,6 +46,7 @@ export function ProgressChart({ userId }: ProgressChartProps) {
                   lastWeight: null,
                   prevWeight: null,
                   change: 'new',
+                  category: machine.category,
                 };
               }
               // Ordenar por fecha descendente
@@ -55,6 +67,7 @@ export function ProgressChart({ userId }: ProgressChartProps) {
                 lastWeight: last.weight,
                 prevWeight: prev ? prev.weight : null,
                 change,
+                category: machine.category,
               };
             })
           );
@@ -68,6 +81,23 @@ export function ProgressChart({ userId }: ProgressChartProps) {
     };
     fetchMachineProgress();
   }, [userId, activeTab]);
+
+  // Filtrar por categoría
+  const filteredProgress = selectedCategory === "todas"
+    ? machineProgress
+    : machineProgress.filter(mp => mp.category === selectedCategory);
+
+  // Ordenar por frecuencia de uso (más sesiones) y luego por última fecha
+  const frequentMachines = [...filteredProgress]
+    .sort((a, b) => {
+      // Aquí podrías usar un campo de frecuencia si lo tuvieras, por ahora por lastWeight (proxy de uso)
+      if (a.lastWeight === null) return 1;
+      if (b.lastWeight === null) return -1;
+      return 0;
+    })
+    .slice(0, 5);
+
+  const machinesToShow = showAll ? filteredProgress : frequentMachines;
 
   return (
     <div>
@@ -102,37 +132,69 @@ export function ProgressChart({ userId }: ProgressChartProps) {
         ) : activeTab === "weight" ? (
           <WeightLine userId={userId} />
         ) : (
-          <div className="overflow-y-auto h-full">
-            {machineProgress.length === 0 ? (
-              <p className="text-gray-500 dark:text-gray-400">No hay datos de máquinas.</p>
-            ) : (
-              <ul className="divide-y divide-gray-200 dark:divide-gray-700">
-                {machineProgress.map((mp) => (
-                  <li key={mp.id} className="flex items-center justify-between py-3 px-2">
-                    <span className="font-medium text-gray-800 dark:text-gray-100">{mp.name}</span>
-                    <span className="flex items-center gap-2">
-                      {mp.lastWeight !== null && (
-                        <span className="text-sm text-gray-600 dark:text-gray-300">
-                          {mp.lastWeight} kg
-                        </span>
-                      )}
-                      {mp.change === 'up' && <span title="Aumento" className="text-green-600">▲</span>}
-                      {mp.change === 'down' && <span title="Disminución" className="text-red-600">▼</span>}
-                      {mp.change === 'same' && <span title="Sin cambio" className="text-gray-400">→</span>}
-                      {mp.change === 'new' && <span title="Nuevo" className="text-blue-400">★</span>}
-                      <span className="text-xs text-gray-400 ml-2">
-                        {mp.change === 'new'
-                          ? 'nuevo'
-                          : mp.prevWeight !== null
-                            ? `(antes: ${mp.prevWeight} kg)`
-                            : ''}
-                      </span>
-                    </span>
-                  </li>
+          <>
+            <div className="flex items-center gap-2 mb-2">
+              <label htmlFor="cat-select" className="text-sm text-gray-600 dark:text-gray-300">Categoría:</label>
+              <select
+                id="cat-select"
+                value={selectedCategory}
+                onChange={e => setSelectedCategory(e.target.value)}
+                className="px-2 py-1 rounded border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-700 text-gray-800 dark:text-gray-100 text-sm"
+              >
+                <option value="todas">Todas</option>
+                {categories.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
                 ))}
-              </ul>
-            )}
-          </div>
+              </select>
+              {!showAll && filteredProgress.length > 5 && (
+                <button
+                  className="ml-auto px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
+                  onClick={() => setShowAll(true)}
+                >
+                  Ver todas
+                </button>
+              )}
+              {showAll && (
+                <button
+                  className="ml-auto px-3 py-1 bg-gray-300 dark:bg-zinc-600 text-gray-800 dark:text-gray-100 rounded text-xs hover:bg-gray-400 dark:hover:bg-zinc-500"
+                  onClick={() => setShowAll(false)}
+                >
+                  Ver menos
+                </button>
+              )}
+            </div>
+            <div className="overflow-y-auto h-full">
+              {machinesToShow.length === 0 ? (
+                <p className="text-gray-500 dark:text-gray-400">No hay datos de máquinas.</p>
+              ) : (
+                <ul className="divide-y divide-gray-200 dark:divide-gray-700">
+                  {machinesToShow.map((mp) => (
+                    <li key={mp.id} className="flex items-center justify-between py-3 px-2">
+                      <span className="font-medium text-gray-800 dark:text-gray-100">{mp.name}</span>
+                      <span className="flex items-center gap-2">
+                        {mp.lastWeight !== null && (
+                          <span className="text-sm text-gray-600 dark:text-gray-300">
+                            {mp.lastWeight} kg
+                          </span>
+                        )}
+                        {mp.change === 'up' && <span title="Aumento" className="text-green-600">▲</span>}
+                        {mp.change === 'down' && <span title="Disminución" className="text-red-600">▼</span>}
+                        {mp.change === 'same' && <span title="Sin cambio" className="text-gray-400">→</span>}
+                        {mp.change === 'new' && <span title="Nuevo" className="text-blue-400">★</span>}
+                        <span className="text-xs text-gray-400 ml-2">
+                          {mp.change === 'new'
+                            ? 'nuevo'
+                            : mp.prevWeight !== null
+                              ? `(antes: ${mp.prevWeight} kg)`
+                              : ''}
+                        </span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </>
         )}
       </div>
     </div>

@@ -22,6 +22,7 @@ export default function MachineDetail() {
   const [editSession, setEditSession] = useState<Session | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [visibleCount, setVisibleCount] = useState(10);
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -225,67 +226,93 @@ export default function MachineDetail() {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-lg p-6">
-          <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-4">
-            Registrar nueva sesión
-          </h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label htmlFor="weight" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Peso (kg)
-              </label>
-              <input
-                type="number"
-                id="weight"
-                value={formData.weight}
-                onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-zinc-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-zinc-700 dark:text-white"
-                required
-                min="0"
-                step="0.1"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="reps" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Repeticiones
-              </label>
-              <input
-                type="number"
-                id="reps"
-                value={formData.reps}
-                onChange={(e) => setFormData({ ...formData, reps: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-zinc-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-zinc-700 dark:text-white"
-                required
-                min="1"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="difficulty" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Dificultad percibida
-              </label>
-              <select
-                id="difficulty"
-                value={formData.difficulty}
-                onChange={(e) => setFormData({ ...formData, difficulty: e.target.value as 'easy' | 'medium' | 'hard' })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-zinc-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-zinc-700 dark:text-white"
-                required
-              >
-                <option value="easy">Fácil</option>
-                <option value="medium">Medio</option>
-                <option value="hard">Difícil</option>
-              </select>
-            </div>
-
-            <button
-              type="submit"
-              className="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            >
-              Guardar sesión
-            </button>
-          </form>
+        {/* Botón para abrir el modal de registro */}
+        <div className="flex justify-center mb-8">
+          <button
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none shadow"
+            onClick={() => setShowRegisterModal(true)}
+          >
+            <span className="text-lg">+</span> Registrar nueva sesión
+          </button>
         </div>
+
+        {/* Modal para registrar nueva sesión */}
+        <Modal
+          isOpen={showRegisterModal}
+          onRequestClose={() => setShowRegisterModal(false)}
+          className="fixed inset-0 flex items-center justify-center z-50"
+          overlayClassName="fixed inset-0 bg-black bg-opacity-50 z-40"
+          ariaHideApp={false}
+        >
+          <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-xl p-8 w-full max-w-md">
+            <h2 className="text-xl font-semibold mb-4">Registrar nueva sesión</h2>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label htmlFor="weight" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Peso (kg)
+                </label>
+                <input
+                  type="number"
+                  id="weight"
+                  value={formData.weight}
+                  onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-zinc-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-zinc-700 dark:text-white"
+                  required
+                  min="0"
+                  step="0.1"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="reps" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Repeticiones
+                </label>
+                <input
+                  type="number"
+                  id="reps"
+                  value={formData.reps}
+                  onChange={(e) => setFormData({ ...formData, reps: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-zinc-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-zinc-700 dark:text-white"
+                  required
+                  min="1"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="difficulty" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Dificultad percibida
+                </label>
+                <select
+                  id="difficulty"
+                  value={formData.difficulty}
+                  onChange={(e) => setFormData({ ...formData, difficulty: e.target.value as 'easy' | 'medium' | 'hard' })}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-zinc-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-zinc-700 dark:text-white"
+                  required
+                >
+                  <option value="easy">Fácil</option>
+                  <option value="medium">Medio</option>
+                  <option value="hard">Difícil</option>
+                </select>
+              </div>
+
+              <div className="flex justify-end gap-2 mt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowRegisterModal(false)}
+                  className="px-4 py-2 rounded bg-gray-300 dark:bg-zinc-600 text-gray-800 dark:text-gray-100 hover:bg-gray-400 dark:hover:bg-zinc-500"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
+                >
+                  Guardar sesión
+                </button>
+              </div>
+            </form>
+          </div>
+        </Modal>
 
         {/* Modal de edición */}
         <Modal
