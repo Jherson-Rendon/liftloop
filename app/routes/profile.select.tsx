@@ -37,6 +37,7 @@ export default function SelectProfile() {
   const [codeInput, setCodeInput] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState("");
 
   const handleSelect = (user: User) => {
     setSelectedUser(user);
@@ -66,6 +67,11 @@ export default function SelectProfile() {
     setLoading(false);
   };
 
+  const usersList = users as User[];
+  const filteredUsers = usersList.filter((user: User) =>
+    user.name.toLowerCase().includes(search.toLowerCase())
+  );
+
   return (
     <div className="flex h-screen items-center justify-center bg-gradient-to-b from-zinc-900 to-zinc-800">
       <div className="px-8 py-12 rounded-lg bg-zinc-800/50 backdrop-blur-sm max-w-md w-full mx-4">
@@ -77,27 +83,38 @@ export default function SelectProfile() {
         </p>
         
         <div className="space-y-4">
-          {users.map((user: User) => (
-            <button
-              key={user.id}
-              type="button"
-              className="w-full flex items-center p-4 bg-zinc-700 rounded-lg hover:bg-zinc-600 transition-all duration-200"
-              onClick={() => handleSelect(user)}
-            >
-              <div
-                className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-semibold"
-                style={{ backgroundColor: user.color }}
+          <input
+            type="text"
+            placeholder="Buscar usuario..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-full mb-4 px-3 py-2 border border-gray-300 dark:border-zinc-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-zinc-700 dark:text-white"
+          />
+          {filteredUsers.length === 0 ? (
+            <div className="text-gray-400 text-center">No se encontraron usuarios</div>
+          ) : (
+            filteredUsers.map((user: User) => (
+              <button
+                key={user.id}
+                type="button"
+                className="w-full flex items-center p-4 bg-zinc-700 rounded-lg hover:bg-zinc-600 transition-all duration-200"
+                onClick={() => handleSelect(user)}
               >
-                {user.name.charAt(0)}
-              </div>
-              <div className="ml-4 flex-1 text-left">
-                <h3 className="text-white font-semibold">{user.name}</h3>
-                <p className="text-gray-400 text-sm">
-                  Miembro desde {new Date(user.createdAt).toLocaleDateString()}
-                </p>
-              </div>
-            </button>
-          ))}
+                <div
+                  className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-semibold"
+                  style={{ backgroundColor: user.color }}
+                >
+                  {user.name.charAt(0)}
+                </div>
+                <div className="ml-4 flex-1 text-left">
+                  <h3 className="text-white font-semibold">{user.name}</h3>
+                  <p className="text-gray-400 text-sm">
+                    Miembro desde {new Date(user.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+              </button>
+            ))
+          )}
         </div>
 
         <div className="mt-8 text-center">
