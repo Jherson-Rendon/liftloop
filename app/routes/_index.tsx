@@ -19,6 +19,8 @@ export default function Index() {
   const navigate = useNavigate();
   const [machines, setMachines] = useState<Machine[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedCategory, setSelectedCategory] = useState<string>('todas');
+  const categories = Array.from(new Set(machines.map(m => m.category)));
 
   useEffect(() => {
     if (currentUser) {
@@ -118,7 +120,21 @@ export default function Index() {
             </div>
           ) : (
             <>
-              <div className="flex justify-end mb-4">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <label htmlFor="cat-select" className="text-sm text-gray-600 dark:text-gray-300 mr-2">Categoría:</label>
+                  <select
+                    id="cat-select"
+                    value={selectedCategory}
+                    onChange={e => setSelectedCategory(e.target.value)}
+                    className="px-2 py-1 rounded border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-700 text-gray-800 dark:text-gray-100 text-sm"
+                  >
+                    <option value="todas">Todas</option>
+                    {categories.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
                 <Link
                   to="/machine/new"
                   className="inline-block bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-all duration-200"
@@ -127,15 +143,17 @@ export default function Index() {
                 </Link>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {machines.map((machine) => (
-                  <MachineCard
-                    key={machine.id}
-                    machine={machine}
-                    userId={currentUser.id}
-                    onEdit={handleEditMachine}
-                    onDelete={handleDeleteMachine}
-                  />
-                ))}
+                {machines
+                  .filter(m => selectedCategory === 'todas' || m.category === selectedCategory)
+                  .map((machine) => (
+                    <MachineCard
+                      key={machine.id}
+                      machine={machine}
+                      userId={currentUser.id}
+                      onEdit={handleEditMachine}
+                      onDelete={handleDeleteMachine}
+                    />
+                  ))}
               </div>
             </>
           )}
