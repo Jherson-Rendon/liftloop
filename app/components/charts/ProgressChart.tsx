@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { getWeightLiftedByWeek, getMachines, getSessionsByMachine, Machine } from "~/lib/storage";
+import { getWeightLiftedByWeek, getMachinesFromFirestore, getSessionsFromFirestore, Machine } from "~/lib/storage";
 import { WeightLine } from "~/components/charts/WeightLine";
+import { Link } from "@remix-run/react";
 
 interface ProgressChartProps {
   userId: string;
@@ -29,16 +30,26 @@ export function ProgressChart({ userId }: ProgressChartProps) {
       setLoading(true);
       try {
         if (activeTab === "machines") {
-          const machines = await getMachines(userId);
+          // Obtener máquinas desde Firestore
+          const machines = (await getMachinesFromFirestore(userId)).map((m: any) => ({
+            ...m,
+            id: Number(m.id),
+          }));
           setMachineList(machines);
           // Obtener categorías únicas
           const uniqueCategories = [
             ...new Set(machines.map((m) => m.category)),
           ];
           setCategories(uniqueCategories);
+          // Obtener todas las sesiones del usuario desde Firestore
+          const allSessions = (await getSessionsFromFirestore(userId)).map((s: any) => ({
+            ...s,
+            machineId: Number(s.machineId),
+          }));
           const progress: MachineProgress[] = await Promise.all(
             machines.map(async (machine) => {
-              const sessions = await getSessionsByMachine(userId, machine.id);
+              // Filtrar sesiones por máquina
+              const sessions = allSessions.filter(s => s.machineId === machine.id);
               if (sessions.length === 0) {
                 return {
                   id: machine.id,
@@ -170,7 +181,12 @@ export function ProgressChart({ userId }: ProgressChartProps) {
                 <ul className="divide-y divide-gray-200 dark:divide-gray-700">
                   {machinesToShow.map((mp) => (
                     <li key={mp.id} className="flex items-center justify-between py-3 px-2">
-                      <span className="font-medium text-gray-800 dark:text-gray-100">{mp.name}</span>
+                      <Link
+                        to={`/machine/${mp.id}`}
+                        className="font-medium text-blue-700 dark:text-blue-300 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-400 rounded transition-colors"
+                      >
+                        {mp.name}
+                      </Link>
                       <span className="flex items-center gap-2">
                         {mp.lastWeight !== null && (
                           <span className="text-sm text-gray-600 dark:text-gray-300">
