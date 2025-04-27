@@ -7,5 +7,5 @@ export default function TestFirestore() {
       console.log("Usuarios desde Firestore:", users);
     });
   }, []);
-  return <div>Revisa la consola para ver los usuarios de Firestore.</div>;
+  return null;
 }
