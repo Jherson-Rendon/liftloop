@@ -3,6 +3,7 @@ import { initialMachines } from './initialData';
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "./firebaseConfig";
 import { parse } from "cookie";
+import { getSession } from "~/lib/session";
 
 // Types
 export interface User {
@@ -334,12 +335,8 @@ export async function getSessionsFromFirestore(userId: string) {
 
 // Nueva función para obtener usuario actual desde cookie y Firestore
 export async function getCurrentUserFromCookie(request: Request) {
-  const cookieHeader = request.headers.get("Cookie");
-  let currentUserId = null;
-  if (cookieHeader) {
-    const cookies = parse(cookieHeader);
-    currentUserId = cookies.currentUserId;
-  }
+  const session = await getSession(request);
+  const currentUserId = session.get("currentUserId");
   if (currentUserId) {
     const users = await getUsersFromFirestore();
     return users.find((u: any) => u.id === currentUserId) || null;

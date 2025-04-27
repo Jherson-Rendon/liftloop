@@ -4,6 +4,7 @@ import { useLoaderData, Link } from "@remix-run/react";
 import { getUsersFromFirestore } from "~/lib/storage";
 import type { User } from "~/lib/storage";
 import React, { useState } from "react";
+import { getSession, commitSession } from "~/lib/session";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   console.log('[Profile Select Loader] Iniciando loader');
@@ -26,16 +27,14 @@ export async function action({ request }: LoaderFunctionArgs) {
     return json({ error: "Se requiere seleccionar un usuario" });
   }
 
-  console.log('[Profile Select Action] Estableciendo cookie para userId:', userId);
-
-  // Solo agrega Secure en producción
-  const isProduction = process.env.NODE_ENV === 'production';
-  const cookieHeader = `currentUserId=${userId}; Path=/; SameSite=Lax;${isProduction ? ' Secure;' : ''} Max-Age=31536000`;
-  console.log('[Profile Select Action] Cookie header:', cookieHeader);
+  const session = await getSession(request);
+  session.set("currentUserId", userId);
+  const setCookieHeader = await commitSession(session);
+  console.log('[Profile Select Action] Set-Cookie header:', setCookieHeader);
 
   return redirect("/", {
     headers: {
-      "Set-Cookie": cookieHeader
+      "Set-Cookie": setCookieHeader
     }
   });
 }
