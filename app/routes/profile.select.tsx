@@ -1,6 +1,6 @@
 import { json, redirect } from "@remix-run/node";
 import type { LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData, Link } from "@remix-run/react";
+import { useLoaderData, Link, Form } from "@remix-run/react";
 import { getUsersFromFirestore } from "~/lib/storage";
 import type { User } from "~/lib/storage";
 import React, { useState } from "react";
@@ -20,11 +20,19 @@ export async function action({ request }: LoaderFunctionArgs) {
   console.log('[Profile Select Action] Iniciando action');
   const formData = await request.formData();
   const userId = formData.get("userId") as string;
-  console.log('[Profile Select Action] userId:', userId);
+  const codeInput = formData.get("codeInput") as string;
+  console.log('[Profile Select Action] userId:', userId, 'codeInput:', codeInput);
 
   if (!userId) {
     console.log('[Profile Select Action] Error: No se proporcionó userId');
     return json({ error: "Se requiere seleccionar un usuario" });
+  }
+
+  // Validar el código aquí
+  const users = await getUsersFromFirestore();
+  const user = users.find((u: any) => u.id === userId) as User | undefined;
+  if (!user || user.code !== codeInput) {
+    return json({ error: "Código incorrecto" });
   }
 
   const session = await getSession(request);
@@ -156,7 +164,8 @@ export default function SelectProfile() {
               <h2 className="text-lg font-semibold mb-4 text-center text-gray-800 dark:text-gray-100">
                 Ingresa el código de acceso para <span className="font-bold">{selectedUser.name}</span>
               </h2>
-              <form onSubmit={handleCodeSubmit}>
+              <Form method="post">
+                <input type="hidden" name="userId" value={selectedUser.id} />
                 <input
                   type="password"
                   inputMode="numeric"
@@ -166,6 +175,7 @@ export default function SelectProfile() {
                   autoFocus
                   className="w-full px-3 py-2 border border-gray-300 dark:border-zinc-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-zinc-700 dark:text-white mb-3 text-center text-lg tracking-widest"
                   placeholder="••••"
+                  name="codeInput"
                   value={codeInput}
                   onChange={e => setCodeInput(e.target.value.replace(/[^0-9]/g, ""))}
                   required
@@ -178,7 +188,7 @@ export default function SelectProfile() {
                 >
                   {loading ? "Verificando..." : "Ingresar"}
                 </button>
-              </form>
+              </Form>
             </div>
           </div>
         )}
