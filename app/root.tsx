@@ -7,12 +7,12 @@ import {
   useLoaderData,
   useLocation
 } from "@remix-run/react";
-import type { LinksFunction, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
+import type { LoaderFunctionArgs } from "@remix-run/node";
 import { useEffect, useState } from "react";
-import { getCurrentUserFromCookie, getMachinesFromFirestore, getUsersFromFirestore } from "~/lib/storage";
-import { parse } from "cookie";
+import { getUsersFromFirestore, getMachinesFromFirestore } from "~/lib/storage";
 import type { User } from "~/lib/storage";
+import { getSession } from "~/lib/session.server";
 
 import "./tailwind.css";
 import { Toast } from "~/components/ui/Toast";
@@ -20,7 +20,7 @@ import { useNetworkStatus } from "~/hooks/useNetworkStatus";
 import { useUserStore } from "~/hooks/useUserStore";
 import { TestDatePanel } from "~/components/ui/TestDatePanel";
 
-export const links: LinksFunction = () => [
+export const links = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
   {
     rel: "preconnect",
@@ -37,23 +37,23 @@ export const links: LinksFunction = () => [
 ];
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const cookieHeader = request.headers.get('Cookie');
-  console.log('[root loader] Cookie header:', cookieHeader);
-
-  let currentUser = await getCurrentUserFromCookie(request);
-  console.log('[root loader] currentUser:', currentUser);
-
+  // Leer la sesión Remix y obtener el usuario actual
+  const session = await getSession(request);
+  const currentUserId = session.get("currentUserId");
+  let currentUser: User | null = null;
   let machines: any[] = [];
-  if (currentUser) {
-    machines = await getMachinesFromFirestore(currentUser.id);
-    console.log('[root loader] machines:', machines);
+  if (currentUserId) {
+    const users = await getUsersFromFirestore();
+    currentUser = (users as User[]).find((u) => u.id === currentUserId) || null;
+    if (currentUser) {
+      machines = await getMachinesFromFirestore(currentUserId);
+    }
   }
-
   return json({ currentUser, machines });
 }
 
 export default function App() {
-  const { currentUser, machines } = useLoaderData<typeof loader>();
+  const { currentUser, machines } = useLoaderData() as { currentUser: User | null, machines: any[] };
   const { isOnline } = useNetworkStatus();
   const location = useLocation();
   const [isMounted, setIsMounted] = useState(false);
@@ -77,7 +77,6 @@ export default function App() {
     }
   }, [location, isMounted]);
   useEffect(() => {
-    // Type assertion since we know the structure matches
     setCurrentUserDirect(currentUser as User | null);
   }, [currentUser, setCurrentUserDirect]);
 

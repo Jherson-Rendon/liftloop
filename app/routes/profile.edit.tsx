@@ -1,17 +1,40 @@
 import { redirect } from "@remix-run/node";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { Form, useLoaderData } from "@remix-run/react";
-import { getCurrentUserFromCookie } from "~/lib/storage";
-import { setDoc, doc, collection } from "firebase/firestore";
+import { getSession } from "~/lib/session.server";
+import { setDoc, doc, collection, getDoc } from "firebase/firestore";
 import { db } from "~/lib/firebaseConfig";
 import type { User } from "~/lib/storage";
 import { useState } from "react";
+
+// Buscar el usuario completo en Firestore usando el id de la sesión
+async function getCurrentUserFromCookie(request: Request): Promise<User | null> {
+  const session = await getSession(request);
+  const currentUserId = session.get("currentUserId");
+  console.log('[getCurrentUserFromCookie] session:', session);
+  console.log('[getCurrentUserFromCookie] currentUserId:', currentUserId);
+  if (currentUserId) {
+    const userDoc = await getDoc(doc(collection(db, "users"), currentUserId));
+    console.log('[getCurrentUserFromCookie] userDoc.exists:', userDoc.exists());
+    if (userDoc.exists()) {
+      const userData = userDoc.data();
+      console.log('[getCurrentUserFromCookie] userData:', userData);
+      return { id: userDoc.id, ...userData } as User;
+    } else {
+      console.log('[getCurrentUserFromCookie] No existe el usuario en Firestore');
+    }
+  } else {
+    console.log('[getCurrentUserFromCookie] No hay currentUserId en la sesión');
+  }
+  return null;
+}
 
 export async function loader({ request }: LoaderFunctionArgs) {
   console.log('[Profile Edit Loader] Iniciando loader');
   const currentUser = await getCurrentUserFromCookie(request) as User | null;
   console.log('[Profile Edit Loader] currentUser:', currentUser);
   if (!currentUser) {
+    console.log('[Profile Edit Loader] Redirigiendo porque no hay usuario');
     return redirect("/");
   }
   return { currentUser };

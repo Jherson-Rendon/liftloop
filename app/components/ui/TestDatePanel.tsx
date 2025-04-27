@@ -6,7 +6,7 @@ export function TestDatePanel() {
   const [open, setOpen] = React.useState(false);
 
   // Solo mostrar en desarrollo
-  if (process.env.NODE_ENV === 'production') return null;
+  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.MODE === 'production') return null;
 
   return (
     <>

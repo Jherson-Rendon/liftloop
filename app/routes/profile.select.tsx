@@ -1,11 +1,17 @@
 import { json, redirect } from "@remix-run/node";
-import type { LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData, Link, Form } from "@remix-run/react";
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
+import { useLoaderData, Link, Form, useActionData } from "@remix-run/react";
 import { getUsersFromFirestore } from "~/lib/storage";
 import type { User } from "~/lib/storage";
-import React, { useState } from "react";
-import { getSession, commitSession } from "~/lib/session";
+import React, { useState, useEffect } from "react";
+import { getSession, commitSession } from "~/lib/session.server";
 
+// Tipos para las funciones
+interface RequestWithFormData extends Request {
+  formData(): Promise<FormData>;
+}
+
+// Cargar datos desde el servidor, pero sin importaciones de @remix-run/node
 export async function loader({ request }: LoaderFunctionArgs) {
   console.log('[Profile Select Loader] Iniciando loader');
   const users = await getUsersFromFirestore();
@@ -16,7 +22,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
   return json({ users });
 }
 
-export async function action({ request }: LoaderFunctionArgs) {
+// Manejo de la acción sin importaciones de @remix-run/node
+export async function action({ request }: ActionFunctionArgs) {
   console.log('[Profile Select Action] Iniciando action');
   const formData = await request.formData();
   const userId = formData.get("userId") as string;
@@ -28,13 +35,14 @@ export async function action({ request }: LoaderFunctionArgs) {
     return json({ error: "Se requiere seleccionar un usuario" });
   }
 
-  // Validar el código aquí
-  const users = await getUsersFromFirestore();
-  const user = users.find((u: any) => u.id === userId) as User | undefined;
+  // Validar el código
+  const users = await getUsersFromFirestore() as User[];
+  const user = users.find((u) => u.id === userId);
   if (!user || user.code !== codeInput) {
     return json({ error: "Código incorrecto" });
   }
 
+  // Guardar el usuario en la sesión Remix
   const session = await getSession(request);
   session.set("currentUserId", userId);
   const setCookieHeader = await commitSession(session);
@@ -47,13 +55,30 @@ export async function action({ request }: LoaderFunctionArgs) {
   });
 }
 
+// Tipos para la data del loader y action
+type LoaderData = {
+  users: User[];
+};
+
+type ActionData = {
+  error?: string;
+};
+
 export default function SelectProfile() {
-  const { users } = useLoaderData<typeof loader>();
+  const { users } = useLoaderData<LoaderData>();
+  const actionData = useActionData<ActionData>();
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [codeInput, setCodeInput] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
+
+  // Si hay un error en actionData, mostrarlo
+  useEffect(() => {
+    if (actionData?.error) {
+      setError(actionData.error);
+    }
+  }, [actionData]);
 
   const handleSelect = (user: User) => {
     setSelectedUser(user);
@@ -61,38 +86,13 @@ export default function SelectProfile() {
     setError("");
   };
 
-  const handleCodeSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-
-    if (selectedUser && codeInput === selectedUser.code) {
-      try {
-        const formData = new FormData();
-        formData.append("userId", selectedUser.id);
-
-        const response = await fetch("", {
-          method: "POST",
-          body: formData,
-        });
-
-        if (response.ok) {
-          window.location.href = "/";
-        } else {
-          setError("Error al iniciar sesión");
-        }
-      } catch (error) {
-        console.error("Error submitting form:", error);
-        setError("Error al procesar la solicitud");
-      }
-    } else {
-      setError("Código incorrecto");
-    }
-
-    setLoading(false);
+  // El formulario ahora solo envía al servidor, no manipula cookies manualmente
+  const handleCodeSubmit = (e: React.FormEvent) => {
+    if (!selectedUser) return;
+    // El submit real lo hace el <Form method="post" />
   };
 
-  const usersList = users as User[];
+  const usersList = users || [];
   const filteredUsers = usersList.filter((user: User) =>
     user.name.toLowerCase().includes(search.toLowerCase())
   );

@@ -1,6 +1,6 @@
 import { redirect } from "@remix-run/node";
 import type { ActionFunctionArgs } from "@remix-run/node";
-import { Form } from "@remix-run/react";
+import { Form, useActionData } from "@remix-run/react";
 import { saveUser } from "~/lib/storage";
 import { collection, setDoc, doc } from "firebase/firestore";
 import { db } from "~/lib/firebaseConfig";
@@ -25,7 +25,8 @@ export async function action({ request }: ActionFunctionArgs) {
     return { error: "Todos los campos son requeridos" };
   }
 
-  if (!/^\d{4}$/.test(code)) {
+  if (!/^[0-9]{4}$/.test(code)) {
+    console.log('[Profile New Action] Código inválido:', code);
     return { error: "El código debe ser exactamente 4 dígitos numéricos." };
   }
 
@@ -45,11 +46,7 @@ export async function action({ request }: ActionFunctionArgs) {
   console.log('[Profile New Action] Created user object:', user);
 
   try {
-    // Verificar unicidad del código
-    const usersSnap = await import("~/lib/storage").then(m => m.getUsersFromFirestore());
-    if (usersSnap.some((u: any) => u.code === code)) {
-      return { error: "El código ya está en uso. Elige otro." };
-    }
+    // Ya no se valida unicidad del código
     console.log('[Profile New Action] Attempting to save user');
     await setDoc(doc(collection(db, "users"), user.id), user);
     console.log('[Profile New Action] Usuario guardado en Firestore:', user);
@@ -63,6 +60,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
 export default function NewProfile() {
   console.log('[Profile New] Rendering component');
+  const actionData = useActionData<{ error?: string }>();
 
   const colors = [
     "#2563eb", // blue-600
@@ -89,6 +87,9 @@ export default function NewProfile() {
 
         <Form method="post" className="bg-white dark:bg-zinc-800 rounded-lg shadow-lg p-8">
           <div className="space-y-6">
+            {actionData?.error && (
+              <div className="text-red-600 text-center font-semibold mb-4">{actionData.error}</div>
+            )}
             <div>
               <label
                 htmlFor="name"

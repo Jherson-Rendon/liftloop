@@ -18,7 +18,11 @@ export const sessionStorage = createCookieSessionStorage({
 });
 
 export async function getSession(request: Request) {
-  return sessionStorage.getSession(request.headers.get("Cookie"));
+  const cookie = request.headers.get("Cookie");
+  console.log('[session.server] getSession cookie header:', cookie);
+  const session = await sessionStorage.getSession(cookie);
+  console.log('[session.server] getSession session:', session);
+  return session;
 }
 
 export async function commitSession(session: any) {
@@ -26,5 +30,7 @@ export async function commitSession(session: any) {
 }
 
 export async function destroySession(session: any) {
-  return sessionStorage.destroySession(session);
+  const destroyed = await sessionStorage.destroySession(session);
+  console.log('[session.server] destroySession result:', destroyed);
+  return destroyed;
 } 

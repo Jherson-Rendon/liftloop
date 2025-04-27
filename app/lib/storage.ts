@@ -3,7 +3,7 @@ import { initialMachines } from './initialData';
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "./firebaseConfig";
 import { parse } from "cookie";
-import { getSession } from "~/lib/session";
+// import { getSession } from "~/lib/session.server"; // Solo importar en archivos .server si es necesario
 
 // Types
 export interface User {
@@ -331,17 +331,6 @@ export async function getSessionsFromFirestore(userId: string) {
   const q = query(sessionsCol, where("userId", "==", userId));
   const sessionsSnapshot = await getDocs(q);
   return sessionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-}
-
-// Nueva función para obtener usuario actual desde cookie y Firestore
-export async function getCurrentUserFromCookie(request: Request) {
-  const session = await getSession(request);
-  const currentUserId = session.get("currentUserId");
-  if (currentUserId) {
-    const users = await getUsersFromFirestore();
-    return users.find((u: any) => u.id === currentUserId) || null;
-  }
-  return null;
 }
 
 // Helpers para cookies (SSR)
