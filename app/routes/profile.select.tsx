@@ -20,13 +20,22 @@ export async function action({ request }: LoaderFunctionArgs) {
   const formData = await request.formData();
   const userId = formData.get("userId") as string;
   console.log('[Profile Select Action] userId:', userId);
+  
   if (!userId) {
+    console.log('[Profile Select Action] Error: No se proporcionó userId');
     return json({ error: "Se requiere seleccionar un usuario" });
   }
-  // Setear cookie como string plano (sin codificación ni serialización)
+
+  console.log('[Profile Select Action] Estableciendo cookie para userId:', userId);
+  
+  // Solo agrega Secure en producción
+  const isProduction = process.env.NODE_ENV === 'production';
+  const cookieHeader = `currentUserId=${userId}; Path=/; SameSite=Lax;${isProduction ? ' Secure;' : ''} Max-Age=31536000`;
+  console.log('[Profile Select Action] Cookie header:', cookieHeader);
+
   return redirect("/", {
     headers: {
-      "Set-Cookie": `currentUserId=${userId}; Path=/; SameSite=Lax`
+      "Set-Cookie": cookieHeader
     }
   });
 }
@@ -49,21 +58,30 @@ export default function SelectProfile() {
     e.preventDefault();
     setLoading(true);
     setError("");
+    
     if (selectedUser && codeInput === selectedUser.code) {
-      // Simula el submit del formulario original
-      const form = document.createElement("form");
-      form.method = "post";
-      form.action = "";
-      const input = document.createElement("input");
-      input.type = "hidden";
-      input.name = "userId";
-      input.value = selectedUser.id;
-      form.appendChild(input);
-      document.body.appendChild(form);
-      form.submit();
+      try {
+        const formData = new FormData();
+        formData.append("userId", selectedUser.id);
+        
+        const response = await fetch("", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (response.ok) {
+          window.location.href = "/";
+        } else {
+          setError("Error al iniciar sesión");
+        }
+      } catch (error) {
+        console.error("Error submitting form:", error);
+        setError("Error al procesar la solicitud");
+      }
     } else {
       setError("Código incorrecto");
     }
+    
     setLoading(false);
   };
 
