@@ -1,12 +1,14 @@
 import { redirect } from "@remix-run/node";
 import type { ActionFunctionArgs } from "@remix-run/node";
+import { getSession, destroySession } from "~/lib/session";
 
 export async function action({ request }: ActionFunctionArgs) {
   console.log('[Logout] Iniciando logout');
-  // Borrar la cookie currentUserId
+  const session = await getSession(request);
+
   return redirect("/", {
     headers: {
-      "Set-Cookie": "currentUserId=; Path=/; Max-Age=0"
+      "Set-Cookie": await destroySession(session)
     }
   });
 }
