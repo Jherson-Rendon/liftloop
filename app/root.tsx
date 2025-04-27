@@ -10,7 +10,11 @@ import {
 import type { LinksFunction, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useEffect, useState } from "react";
+<<<<<<< HEAD
 import { getCurrentUserFromCookie, getMachinesFromFirestore, getUsersFromFirestore } from "~/lib/storage";
+=======
+import { getCurrentUserFromCookie, getMachines, getUsersFromFirestore } from "~/lib/storage";
+>>>>>>> 95a3c1246c1a6c9854832977ac51e3e27b33c307
 import { parse } from "cookie";
 
 import "./tailwind.css";
@@ -38,6 +42,7 @@ export const links: LinksFunction = () => [
 export async function loader({ request }: LoaderFunctionArgs) {
   const cookieHeader = request.headers.get('Cookie');
   console.log('[root loader] Cookie header:', cookieHeader);
+<<<<<<< HEAD
   
   let currentUser = await getCurrentUserFromCookie(request);
   console.log('[root loader] currentUser:', currentUser);
@@ -48,6 +53,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
     console.log('[root loader] machines:', machines);
   }
   
+=======
+  let currentUser = await getCurrentUserFromCookie(request);
+  console.log('[root loader] currentUser:', currentUser);
+  let machines = [];
+>>>>>>> 95a3c1246c1a6c9854832977ac51e3e27b33c307
   return json({ currentUser, machines });
 }
 

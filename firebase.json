@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 {
   "hosting": {
     "public": "build/client",
@@ -8,3 +9,15 @@
     ]
   }
 }
+=======
+{
+  "hosting": {
+    "public": "build/client",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ]
+  }
+}
+>>>>>>> 95a3c1246c1a6c9854832977ac51e3e27b33c307
