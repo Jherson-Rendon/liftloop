@@ -6,10 +6,11 @@ import { ProgressChart } from "~/components/charts/ProgressChart";
 import { UserProfile } from "~/components/cards/UserProfile";
 import { AddSessionForm } from "~/components/forms/AddSessionForm";
 import { AddMachineForm } from "~/components/forms/AddMachineForm";
-import { getMachines, getMachinesFromFirestore } from "~/lib/storage";
+import { getMachines, getMachinesFromFirestore, getFriendsData } from "~/lib/storage"; // Updated import
 import TestFirestore from "~/components/TestFirestore";
 import { collection, setDoc, doc, deleteDoc } from 'firebase/firestore';
 import { db } from '~/lib/firebaseConfig';
+import { FriendsModal } from "~/components/social/FriendsModal"; // New import
 
 interface OutletContext {
   currentUser: User | null;
@@ -25,6 +26,12 @@ export default function Index() {
   const [machines, setMachines] = useState<Machine[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>('todas');
+
+  // Friends State
+  const [isFriendsModalOpen, setIsFriendsModalOpen] = useState(false);
+  const [friendsList, setFriendsList] = useState<User[]>([]);
+  const [selectedFriendIds, setSelectedFriendIds] = useState<string[]>([]);
+
   const categories = Array.from(new Set(machines.map(m => m.category)));
 
   useEffect(() => {
@@ -46,8 +53,24 @@ export default function Index() {
         console.error('[Firestore] Error obteniendo máquinas:', e);
         setLoading(false);
       });
+
+      // Load friends
+      loadFriends();
     }
   }, [currentUser]);
+
+  const loadFriends = async () => {
+    if (currentUser && currentUser.friends && currentUser.friends.length > 0) {
+      try {
+        const friends = await getFriendsData(currentUser.friends);
+        setFriendsList(friends);
+      } catch (error) {
+        console.error("Error loading friends:", error);
+      }
+    } else {
+      setFriendsList([]);
+    }
+  };
 
   const handleMachineAdded = async (machine: Machine) => {
     setMachines(prev => [...prev, machine]);
@@ -70,6 +93,14 @@ export default function Index() {
         console.error('Error deleting machine:', error);
       }
     }
+  };
+
+  const toggleFriendSelection = (friendId: string) => {
+    setSelectedFriendIds(prev =>
+      prev.includes(friendId)
+        ? prev.filter(id => id !== friendId)
+        : [...prev, friendId]
+    );
   };
 
   return (
@@ -114,6 +145,14 @@ export default function Index() {
             {/* Perfil del usuario */}
             <div className="md:col-span-1">
               <UserProfile user={currentUser} />
+
+              {/* Friends Button (Mobile/Desktop) */}
+              <button
+                onClick={() => setIsFriendsModalOpen(true)}
+                className="w-full mt-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold py-3 rounded-xl shadow-lg hover:from-purple-700 hover:to-pink-700 transition-all flex items-center justify-center gap-2"
+              >
+                <span>👥</span> Amigos y Competencia
+              </button>
             </div>
 
             {/* Contenido principal */}
@@ -140,14 +179,16 @@ export default function Index() {
                 </div>
               ) : (
                 <>
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <label htmlFor="cat-select" className="text-sm text-gray-600 dark:text-gray-300 mr-2">Categoría:</label>
+                  {/* Controls Row */}
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
+                    {/* Category Filter */}
+                    <div className="flex items-center">
+                      <label htmlFor="cat-select" className="text-sm font-medium text-gray-600 dark:text-gray-300 mr-2">Categoría:</label>
                       <select
                         id="cat-select"
                         value={selectedCategory}
                         onChange={e => setSelectedCategory(e.target.value)}
-                        className="px-2 py-1 rounded border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-700 text-gray-800 dark:text-gray-100 text-sm"
+                        className="px-3 py-2 rounded-lg border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-700 text-gray-800 dark:text-gray-100 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                       >
                         <option value="todas">Todas</option>
                         {categories.map(cat => (
@@ -155,13 +196,49 @@ export default function Index() {
                         ))}
                       </select>
                     </div>
+
                     <Link
                       to="/machine/new"
-                      className="inline-block bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-all duration-200"
+                      className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-all duration-200 shadow-md flex items-center gap-1 text-sm font-medium"
                     >
-                      + Agregar máquina
+                      <span className="text-lg">+</span> Agregar máquina
                     </Link>
                   </div>
+
+                  {/* Comparison Bar (if friends exist) */}
+                  {friendsList.length > 0 && (
+                    <div className="mb-6 p-4 bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-gray-100 dark:border-zinc-700">
+                      <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3">
+                        Comparar con:
+                      </p>
+                      <div className="flex flex-wrap gap-3">
+                        {friendsList.map(friend => {
+                          const isSelected = selectedFriendIds.includes(friend.id);
+                          return (
+                            <button
+                              key={friend.id}
+                              onClick={() => toggleFriendSelection(friend.id)}
+                              className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition-all duration-200 border ${isSelected
+                                  ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700 ring-1 ring-blue-500'
+                                  : 'bg-gray-50 dark:bg-zinc-700/50 border-gray-200 dark:border-zinc-700 hover:bg-gray-100 dark:hover:bg-zinc-700'
+                                }`}
+                            >
+                              <div
+                                className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-sm"
+                                style={{ backgroundColor: friend.color }}
+                              >
+                                {friend.name.charAt(0)}
+                              </div>
+                              <span className={`text-sm ${isSelected ? 'font-semibold text-blue-700 dark:text-blue-300' : 'text-gray-600 dark:text-gray-300'}`}>
+                                {friend.name}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {machines
                       .filter(m => selectedCategory === 'todas' || m.category === selectedCategory)
@@ -172,6 +249,7 @@ export default function Index() {
                           userId={currentUser.id}
                           onEdit={handleEditMachine}
                           onDelete={handleDeleteMachine}
+                          friendIds={selectedFriendIds} // Pass selected friends
                         />
                       ))}
                   </div>
@@ -179,6 +257,20 @@ export default function Index() {
               )}
             </div>
           </div>
+
+          <FriendsModal
+            isOpen={isFriendsModalOpen}
+            onClose={() => setIsFriendsModalOpen(false)}
+            currentUser={currentUser}
+            onFriendsUpdated={() => {
+              // Reload specific parts if needed, mostly handled by state updates but reloading user might be needed for friend list changes
+              // In a real app we'd revalidator.revalidate() or similar
+              // For now, loadFriends is enough if friend list IDs haven't changed in current user object... wait.
+              // If we add a friend, currentUser.friends changes in DB but not in local context unless we refresh.
+              // We should probably trigger a reload of currentUser.
+              window.location.reload(); // Simple brute force update for now to ensure context updates
+            }}
+          />
         </div>
       )}
     </>

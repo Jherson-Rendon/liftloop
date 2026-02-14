@@ -1,6 +1,6 @@
 import { get, set, del, keys, entries } from 'idb-keyval';
 import { initialMachines } from './initialData';
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { collection, getDocs, query, where, doc, setDoc, getDoc } from "firebase/firestore";
 import { db } from "./firebaseConfig";
 import { parse } from "cookie";
 // import { getSession } from "~/lib/session.server"; // Solo importar en archivos .server si es necesario
@@ -17,6 +17,8 @@ export interface User {
   age: number;
   height: number;
   code: string;
+  friends?: string[];
+  friendCode?: string;
 }
 
 export interface Machine {
@@ -25,6 +27,7 @@ export interface Machine {
   image: string;
   category: string;
   userId?: string;
+  catalogId?: string;
 }
 
 export interface Session {
@@ -123,14 +126,14 @@ const storage = {
 export async function getUsers(): Promise<User[]> {
   try {
     const allKeys = await storage.keys();
-    const userKeys = allKeys.filter(key => 
+    const userKeys = allKeys.filter(key =>
       typeof key === 'string' && key.startsWith(USER_PREFIX)
     );
-    
+
     const users = await Promise.all(
       userKeys.map(async key => await storage.get(key))
     );
-    
+
     return users as User[];
   } catch (error) {
     console.error('Error getting users:', error);
@@ -152,11 +155,163 @@ export async function saveUser(user: User): Promise<void> {
 export async function getUser(userId: string): Promise<User | null> {
   try {
     const user = await storage.get(`${USER_PREFIX}${userId}`);
-    return user || null;
+    if (user) return user;
+
+    // Fallback: Try fetching from Firestore if local fails
+    const userRef = doc(db, "users", userId);
+    const docSnap = await getDoc(userRef);
+    if (docSnap.exists()) {
+      const userData = { id: docSnap.id, ...docSnap.data() } as User;
+      // Save it locally for future use
+      await saveUser(userData);
+      return userData;
+    }
+    return null;
   } catch (error) {
     console.error('Error getting user:', error);
     return null;
   }
+}
+
+// Friend Functions
+
+// Helper to find a matching machine in another user's profile
+export async function findMatchingMachine(targetUserId: string, sourceMachine: Machine): Promise<Machine | null> {
+  try {
+    const targetMachines = await getMachinesFromFirestore(targetUserId);
+
+    // 1. Try to match by catalogId (Strongest match)
+    if (sourceMachine.catalogId) {
+      const match = targetMachines.find((m: any) => m.catalogId === sourceMachine.catalogId);
+      if (match) return match as Machine;
+    }
+
+    // 2. Fallback: Match by exact name (Case insensitive)
+    const matchByName = targetMachines.find((m: any) =>
+      m.name.toLowerCase().trim() === sourceMachine.name.toLowerCase().trim()
+    );
+
+    return matchByName ? matchByName as Machine : null;
+  } catch (error) {
+    console.error("Error finding matching machine:", error);
+    return null;
+  }
+}
+
+export async function generateFriendCode(userId: string): Promise<string> {
+  const characters = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Avoid ambiguous chars
+  let result = '';
+  for (let i = 0; i < 6; i++) {
+    result += characters.charAt(Math.floor(Math.random() * characters.length));
+  }
+
+  // Update user with new code
+  const user = await getUser(userId);
+  if (user) {
+    const updatedUser = { ...user, friendCode: result };
+    await saveUser(updatedUser);
+
+    const userRef = doc(db, "users", userId);
+    await setDoc(userRef, { friendCode: result }, { merge: true });
+    return result;
+  }
+  throw new Error("User not found");
+}
+
+export async function addFriendByCode(currentUserId: string, code: string): Promise<void> {
+  try {
+    // 1. Find user with this code
+    const usersCol = collection(db, "users");
+    const q = query(usersCol, where("friendCode", "==", code));
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.empty) {
+      throw new Error("Código no encontrado");
+    }
+
+    const friendDoc = querySnapshot.docs[0];
+    const friendId = friendDoc.id;
+    const friendData = friendDoc.data() as User; // Cast carefully
+
+    if (friendId === currentUserId) {
+      throw new Error("No puedes agregarte a ti mismo");
+    }
+
+    // 2. Add friendId to currentUser's friends list
+    const currentUser = await getUser(currentUserId);
+    if (!currentUser) throw new Error("Current user not found");
+
+    const currentFriends = currentUser.friends || [];
+    if (currentFriends.includes(friendId)) {
+      throw new Error("Ya son amigos");
+    }
+
+    const updatedFriends = [...currentFriends, friendId];
+    await saveUser({ ...currentUser, friends: updatedFriends });
+    await setDoc(doc(db, "users", currentUserId), { friends: updatedFriends }, { merge: true });
+
+    // 3. Add currentUserId to friend's friends list (Mutual)
+    const friendFriends = friendData.friends || [];
+    if (!friendFriends.includes(currentUserId)) {
+      const updatedFriendFriends = [...friendFriends, currentUserId];
+      // We technically should update local storage for the friend too if we could, but they might be on another device.
+      // We MUST update Firestore.
+      await setDoc(doc(db, "users", friendId), { friends: updatedFriendFriends }, { merge: true });
+    }
+
+  } catch (error) {
+    console.error("Error adding friend:", error);
+    throw error;
+  }
+}
+
+export async function removeFriend(currentUserId: string, friendId: string): Promise<void> {
+  try {
+    // Remove from current user
+    const currentUser = await getUser(currentUserId);
+    if (currentUser && currentUser.friends) {
+      const updatedFriends = currentUser.friends.filter(id => id !== friendId);
+      await saveUser({ ...currentUser, friends: updatedFriends });
+      await setDoc(doc(db, "users", currentUserId), { friends: updatedFriends }, { merge: true });
+    }
+
+    // Remove from friend (Firestore)
+    // Note: In a real app with proper security rules, users might not be allowed to edit other users' docs directly.
+    // Assuming permissive rules for now or backend function.
+    const friendRef = doc(db, "users", friendId);
+    const friendSnap = await getDoc(friendRef);
+    if (friendSnap.exists()) {
+      const friendData = friendSnap.data() as User;
+      if (friendData.friends) {
+        const updatedFriendFriends = friendData.friends.filter(id => id !== currentUserId);
+        await setDoc(friendRef, { friends: updatedFriendFriends }, { merge: true });
+      }
+    }
+  } catch (error) {
+    console.error("Error removing friend:", error);
+    throw error;
+  }
+}
+
+export async function getFriendsData(friendIds: string[]): Promise<User[]> {
+  if (!friendIds || friendIds.length === 0) return [];
+
+  // Check local storage first for speed, but fallback to Firestore
+  const friends: User[] = [];
+  for (const id of friendIds) {
+    let friend = await getUser(id);
+    if (!friend) {
+      // force fetch from firestore inside getUser if properly implemented, or direct ref here
+      // getUser already has fallback logic now. Be sure it works for non-current-user too.
+      // Wait, getUser checks LOCAL storage for USER_PREFIX+userId.
+      // If we haven't loaded this friend before, they won't be in local.
+      // The revised getUser handles this!
+    }
+    if (friend) {
+      friends.push(friend);
+    }
+  }
+  return friends;
 }
 
 export async function deleteUser(userId: string): Promise<void> {
@@ -164,6 +319,33 @@ export async function deleteUser(userId: string): Promise<void> {
     await storage.del(`${USER_PREFIX}${userId}`);
   } catch (error) {
     console.error('Error deleting user:', error);
+    throw error;
+  }
+}
+
+export async function updateUserWeight(userId: string, weight: number, date: string): Promise<void> {
+  try {
+    const user = await getUser(userId);
+    if (!user) throw new Error("User not found");
+
+    // Inicializar arrays si no existen
+    const currentWeights = user.weight || [];
+    const currentDates = user.weightDates || [];
+
+    // Agregar nuevo dato
+    const newWeights = [...currentWeights, weight];
+    const newDates = [...currentDates, date];
+
+    // Actualizar usuario localmente
+    const updatedUser = { ...user, weight: newWeights, weightDates: newDates };
+    await saveUser(updatedUser);
+
+    // Actualizar en Firestore si es necesario (asumimos sincronización futura o manual)
+    const userRef = doc(db, "users", userId);
+    await setDoc(userRef, { weight: newWeights, weightDates: newDates }, { merge: true });
+
+  } catch (error) {
+    console.error("Error updating user weight:", error);
     throw error;
   }
 }
@@ -202,12 +384,12 @@ export async function getMachine(userId: string, id: number): Promise<Machine | 
 export async function getSessionsByUser(userId: string): Promise<Session[]> {
   try {
     const allEntries = await storage.entries();
-    const sessionEntries = allEntries.filter(([key]) => 
-      typeof key === 'string' && 
-      key.startsWith(SESSION_PREFIX) && 
+    const sessionEntries = allEntries.filter(([key]) =>
+      typeof key === 'string' &&
+      key.startsWith(SESSION_PREFIX) &&
       key.includes(userId)
     );
-    
+
     return sessionEntries.map(([_, value]) => value as Session);
   } catch (error) {
     console.error('Error getting sessions:', error);
@@ -226,7 +408,25 @@ export async function saveSession(session: Session): Promise<void> {
 
 export async function getSessionsByMachine(userId: string, machineId: number): Promise<Session[]> {
   try {
-    const sessions = await getSessionsByUser(userId);
+    // 1. Try Local Storage first
+    let sessions = await getSessionsByUser(userId);
+
+    // 2. If empty (or for friends not in local storage), try Firestore
+    if (sessions.length === 0) {
+      const remoteSessionsRaw = await getSessionsFromFirestore(userId);
+      if (remoteSessionsRaw.length > 0) {
+        sessions = remoteSessionsRaw.map((s: any) => ({
+          id: String(s.id),
+          userId: s.userId,
+          machineId: Number(s.machineId),
+          weight: Number(s.weight),
+          reps: Number(s.reps),
+          date: s.date,
+          difficulty: s.difficulty as 'easy' | 'medium' | 'hard'
+        }));
+      }
+    }
+
     return sessions.filter(session => session.machineId === machineId);
   } catch (error) {
     console.error('Error getting sessions by machine:', error);
@@ -239,20 +439,20 @@ export async function getWeightLiftedByWeek(userId: string): Promise<{ week: str
   if (!userId) return [];
   try {
     const sessions = await getSessionsByUser(userId);
-    
+
     // Group sessions by week
     const weeklyData: Record<string, number> = {};
-    
+
     sessions.forEach(session => {
       const date = new Date(session.date);
       const weekStart = new Date(date);
       weekStart.setDate(date.getDate() - date.getDay()); // Start of week (Sunday)
       const weekKey = weekStart.toISOString().split('T')[0];
-      
+
       const totalWeight = session.weight * session.reps;
       weeklyData[weekKey] = (weeklyData[weekKey] || 0) + totalWeight;
     });
-    
+
     // Convert to array and sort by week
     return Object.entries(weeklyData)
       .map(([week, total]) => ({ week, total }))
@@ -270,16 +470,16 @@ export async function migrateToBackend() {
     const users = await getUsers();
     const allSessions: Session[] = [];
     const allMachines: Record<string, Machine[]> = {};
-    
+
     for (const user of users) {
       const userSessions = await getSessionsByUser(user.id);
       allSessions.push(...userSessions);
       allMachines[user.id] = await getMachines(user.id);
     }
-    
+
     // Aquí implementarías las llamadas a la API para enviar estos datos a tu backend
     console.log('Ready to migrate:', { users, sessions: allSessions, machines: allMachines });
-    
+
     return { success: true, message: 'Data prepared for migration' };
   } catch (error) {
     console.error('Error preparing migration:', error);
@@ -298,7 +498,7 @@ export async function createUser(data: { name: string; age: number; weight: numb
     id,
     name: data.name,
     avatar: '',
-    color: '#' + Math.floor(Math.random()*16777215).toString(16),
+    color: '#' + Math.floor(Math.random() * 16777215).toString(16),
     weight: [data.weight],
     weightDates: [now],
     createdAt: now,
