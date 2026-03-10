@@ -90,24 +90,30 @@ export default function MachineDetail() {
         return;
       }
 
-      // Lazy import to avoid potential circular dep issues, though less likely here
       const { getSessionsByMachine, findMatchingMachine } = await import("~/lib/storage");
 
       const results = [];
-      const currentMachineIdNum = parseInt(id, 10);
 
       // We need the current machine details to find the matching one
-      // machine definition is already loaded in 'machine' state
-      if (!machine) return;
+      if (!machine) {
+        console.warn('[FriendSessions] machine state is null, skipping');
+        return;
+      }
+
+      console.log('[FriendSessions] Fetching for friends:', selectedFriendIds, 'current machine:', machine);
 
       for (const friendId of selectedFriendIds) {
         try {
           // Find matching machine in friend's profile
           const friendMachine = await findMatchingMachine(friendId, machine);
+          console.log(`[FriendSessions] Friend ${friendId} matching machine:`, friendMachine);
 
           if (friendMachine) {
-            const friendMachineId = typeof friendMachine.id === 'string' ? parseInt(friendMachine.id, 10) : friendMachine.id;
-            const fSessions = await getSessionsByMachine(friendId, friendMachineId);
+            // Use the friend machine's ID as-is, getSessionsByMachine handles type coercion
+            const friendMachineId = friendMachine.id;
+            console.log(`[FriendSessions] Fetching sessions for friend ${friendId}, machineId: ${friendMachineId} (type: ${typeof friendMachineId})`);
+            const fSessions = await getSessionsByMachine(friendId, friendMachineId as any);
+            console.log(`[FriendSessions] Friend ${friendId} sessions found:`, fSessions.length, fSessions);
 
             if (fSessions.length > 0) {
               const last = fSessions.sort((a, b) =>
@@ -118,16 +124,20 @@ export default function MachineDetail() {
                 results.push({ userId: friendId, name: friend.name, session: last });
               }
             }
+          } else {
+            console.warn(`[FriendSessions] No matching machine found for friend ${friendId}`);
           }
         } catch (err) {
           console.error(`Error fetching sessions for friend ${friendId}`, err);
         }
       }
+      console.log('[FriendSessions] Final results:', results);
       setFriendSessions(results);
     };
 
     fetchFriendSessions();
-  }, [selectedFriendIds, id, friendsList, machine]); // added machine dependency
+  }, [selectedFriendIds, id, friendsList, machine]);
+
 
 
   const handleSubmit = async (e: React.FormEvent) => {

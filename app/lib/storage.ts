@@ -175,23 +175,54 @@ export async function getUser(userId: string): Promise<User | null> {
 
 // Friend Functions
 
+// Helper to normalize a name for comparison (remove accents, lowercase, trim)
+function normalizeName(name: string): string {
+  return name
+    .toLowerCase()
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
 // Helper to find a matching machine in another user's profile
 export async function findMatchingMachine(targetUserId: string, sourceMachine: Machine): Promise<Machine | null> {
   try {
     const targetMachines = await getMachinesFromFirestore(targetUserId);
+    console.log(`[findMatchingMachine] Source machine:`, { id: sourceMachine.id, name: sourceMachine.name, catalogId: sourceMachine.catalogId });
+    console.log(`[findMatchingMachine] Target user ${targetUserId} has ${targetMachines.length} machines:`, targetMachines.map((m: any) => ({ id: m.id, name: m.name, catalogId: m.catalogId })));
 
     // 1. Try to match by catalogId (Strongest match)
     if (sourceMachine.catalogId) {
       const match = targetMachines.find((m: any) => m.catalogId === sourceMachine.catalogId);
-      if (match) return match as Machine;
+      if (match) {
+        console.log(`[findMatchingMachine] Matched by catalogId:`, match);
+        return match as Machine;
+      }
     }
 
     // 2. Fallback: Match by exact name (Case insensitive)
+    const sourceNameNorm = normalizeName(sourceMachine.name);
     const matchByName = targetMachines.find((m: any) =>
-      m.name.toLowerCase().trim() === sourceMachine.name.toLowerCase().trim()
+      normalizeName(m.name) === sourceNameNorm
     );
 
-    return matchByName ? matchByName as Machine : null;
+    if (matchByName) {
+      console.log(`[findMatchingMachine] Matched by name:`, matchByName);
+      return matchByName as Machine;
+    }
+
+    // 3. Partial name match (contains)
+    const matchByPartialName = targetMachines.find((m: any) =>
+      normalizeName(m.name).includes(sourceNameNorm) || sourceNameNorm.includes(normalizeName(m.name))
+    );
+
+    if (matchByPartialName) {
+      console.log(`[findMatchingMachine] Matched by partial name:`, matchByPartialName);
+      return matchByPartialName as Machine;
+    }
+
+    console.warn(`[findMatchingMachine] No match found for "${sourceMachine.name}" in target user ${targetUserId}`);
+    return null;
   } catch (error) {
     console.error("Error finding matching machine:", error);
     return null;
@@ -406,7 +437,7 @@ export async function saveSession(session: Session): Promise<void> {
   }
 }
 
-export async function getSessionsByMachine(userId: string, machineId: number): Promise<Session[]> {
+export async function getSessionsByMachine(userId: string, machineId: number | string): Promise<Session[]> {
   try {
     // 1. Try Local Storage first
     let sessions = await getSessionsByUser(userId);
@@ -427,7 +458,12 @@ export async function getSessionsByMachine(userId: string, machineId: number): P
       }
     }
 
-    return sessions.filter(session => session.machineId === machineId);
+    // Use loose equality (==) to handle string/number type mismatches in machineId
+    const machineIdNum = Number(machineId);
+    console.log(`[getSessionsByMachine] userId=${userId}, machineId=${machineId} (as number: ${machineIdNum}), total sessions: ${sessions.length}`);
+    const filtered = sessions.filter(session => Number(session.machineId) === machineIdNum);
+    console.log(`[getSessionsByMachine] Filtered sessions for machine ${machineId}:`, filtered.length);
+    return filtered;
   } catch (error) {
     console.error('Error getting sessions by machine:', error);
     return [];
