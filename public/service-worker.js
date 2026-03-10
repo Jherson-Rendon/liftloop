@@ -8,8 +8,8 @@ const STATIC_ASSETS = [
 // Helper function to check if a request is an auth request
 const isAuthRequest = (url) => {
   return url.pathname.includes('/profile/select') ||
-         url.pathname.includes('/profile/new') ||
-         url.pathname.includes('/logout');
+    url.pathname.includes('/profile/new') ||
+    url.pathname.includes('/logout');
 };
 
 // Install event - cache static assets
@@ -80,15 +80,22 @@ const cacheFirst = async (request) => {
   return networkResponse;
 };
 
+// Helper function to check if a request should be bypassed by the Service Worker
+const shouldBypassServiceWorker = (url) => {
+  return isAuthRequest(url) ||
+    url.hostname.includes('firestore.googleapis.com') ||
+    url.hostname.includes('firebaseinstallations.googleapis.com') ||
+    url.hostname.includes('firebasestorage.googleapis.com');
+};
+
 // Fetch event - handle different types of requests
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // No interceptar solicitudes de autenticación
-  if (isAuthRequest(url)) {
-    event.respondWith(fetch(request));
-    return;
+  // Bypass Auth and Google APIs (Firestore, etc.)
+  if (shouldBypassServiceWorker(url)) {
+    return; // Let the browser handle it normally
   }
 
   // Handle navigation requests
@@ -97,6 +104,11 @@ self.addEventListener('fetch', (event) => {
       networkFirst(request)
         .catch(() => caches.match('/offline.html'))
     );
+    return;
+  }
+
+  // Only handle GET requests for subresources (images, scripts, etc.)
+  if (request.method !== 'GET') {
     return;
   }
 
@@ -117,6 +129,9 @@ self.addEventListener('fetch', (event) => {
     networkFirst(request)
       .catch(error => {
         console.error('Fetch failed:', error);
+        // Don't return a 408 for API-like requests if they fail, 
+        // especially if we want the library to handle retries.
+        // For static assets/navigation we already handled them above.
         return new Response('Network error', { status: 408, statusText: 'Network error' });
       })
   );
