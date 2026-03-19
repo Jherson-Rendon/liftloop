@@ -1,40 +1,58 @@
-# Welcome to Remix!
+# 🏋️ Gym Progress PWA
 
-- ð [Remix docs](https://remix.run/docs)
+Una Progressive Web App para rastrear el progreso en el gimnasio, registrar entrenamientos y visualizar tus mejoras con gráficos interactivos.
 
-## Development
+## ✨ Características
 
-Run the dev server:
+- 📊 **Registro de entrenamientos** - Registra cada ejercicio, series, repeticiones y peso utilizado
+- 📈 **Visualización de progreso** - Gráficos gráficos con Chart.js para ver tus avances
+- 📱 **Funciona offline** - PWA completamente funcional sin conexión a internet
+- 🔒 **Autenticación** - Seguridad con Firebase Authentication
+- 💾 **Datos persistentes** - Tus registros se guardan en Firebase Firestore
+- 🎨 **Diseño moderno** - Interfaz responsiva con Tailwind CSS
 
-```shellscript
+## 🛠️ Tecnologías
+
+- **Remix** - Framework web moderno
+- **React** - Biblioteca de UI
+- **Firebase** - Backend as-a-service (Auth, Firestore, Storage)
+- **Chart.js** - Graficos de visualización de datos
+- **Tailwind CSS** - Estilizado utilitario
+- **Zustand** - Gestión de estado
+- **idb-keyval** - IndexedDB para almacenamiento offline
+
+## 📦 Instalación
+
+```bash
+npm install
+```
+
+## 🚀 Desarrollo
+
+```bash
 npm run dev
 ```
 
-## Deployment
+## 🔨 Construcción para producción
 
-First, build your app for production:
-
-```sh
+```bash
 npm run build
-```
-
-Then run the app in production mode:
-
-```sh
 npm start
 ```
 
-Now you'll need to pick a host to deploy it to.
+## 📱 Despliegue
 
-### DIY
+El proyecto está configurado para ser una PWA. Después de construir:
 
-If you're familiar with deploying Node applications, the built-in Remix app server is production-ready.
+```bash
+npm run build
+```
 
-Make sure to deploy the output of `npm run build`
+El directorio `build/client` contiene el app frontend.
+El directorio `build/server` contiene el backend para Node.js.
 
-- `build/server`
-- `build/client`
+---
 
-## Styling
+## 📖 Documentación
 
-This template comes with [Tailwind CSS](https://tailwindcss.com/) already configured for a simple default starting experience. You can use whatever css framework you prefer. See the [Vite docs on css](https://vitejs.dev/guide/features.html#css) for more information.
+Para más información sobre el proyecto, ve la carpeta `/docs`.
